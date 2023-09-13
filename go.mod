@@ -3,7 +3,6 @@ module d2api
 go 1.21.1
 
 require (
-	github.com/Philipp15b/go-steam/v3 v3.0.0
 	github.com/golang/protobuf v1.5.3
 	github.com/paralin/go-dota2 v0.0.0-20230812030130-d63690b89ff0
 	github.com/paralin/go-steam v0.0.0-20230323124938-41e2a40a56ff

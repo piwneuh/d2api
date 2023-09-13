@@ -1,57 +1,57 @@
 // A simple example that uses the modules from the gsbot package and go-steam to log on
 // to the Steam network.
 //
-// Use the right options for your account settings:
-// Normal login: username + password
+// The command expects log on data, optionally with an auth code:
 //
-// Email code:   username + password
-//               username + password + authcode
-//
-// Mobile code:  username + password + twofactorcode
-//               username + loginkey
-//
-//     gsbot [username] [-p password] [-a authcode] [-t twofactorcode] [-l loginkey]
-// Example: go run ./cmd guy -p guyspassword 
-// 			go run ./cmd guy -p guyspassword -a 123456
-
+//     gsbot [username] [password]
+//     gsbot [username] [password] [authcode]
 package main
 
 import (
 	"fmt"
 	"os"
 
-	"github.com/Philipp15b/go-steam/v3"
-	"github.com/Philipp15b/go-steam/v3/gsbot"
-	"github.com/Philipp15b/go-steam/v3/protocol/steamlang"
+	"github.com/paralin/go-steam"
+	"github.com/paralin/go-steam/gsbot"
+	"github.com/paralin/go-steam/protocol/steamlang"
+
+	// "io/ioutil"
+	// "math/rand"
+	// "encoding/json"
+
+	// "github.com/paralin/go-steam/netutil"
 )
 
-const usage string = "usage: gsbot [username] [-p password] [-a authcode] [-t twofactorcode] [-l loginkey]"
-
 func main() {
-	if len(os.Args) < 3 || len(os.Args)%2 != 0 {
-		fmt.Println(usage)
+	// d, err := ioutil.ReadFile("serverlist.json")
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// println(string(d))
+
+	// var addrs []*netutil.PortAddr
+	// err = json.Unmarshal(d, &addrs)
+	// if err != nil {
+	// 	println(err.Error())
+	// }
+	// raddr := addrs[rand.Intn(len(addrs))]
+	// println(raddr.String())
+
+	if len(os.Args) < 3 {
+		fmt.Println("gsbot example\nusage: \n\tgsbot [username] [password] [authcode]")
 		return
 	}
 
-	details := &steam.LogOnDetails{
-		Username:               os.Args[1],
-		ShouldRememberPassword: true,
+	// optional auth code
+	authcode := ""
+	if len(os.Args) > 3 {
+		authcode = os.Args[3]
 	}
 
-	for i := 2; i < len(os.Args)-1; i += 2 {
-		switch os.Args[i] {
-		case "-p":
-			details.Password = os.Args[i+1]
-		case "-a":
-			details.AuthCode = os.Args[i+1]
-		case "-t":
-			details.TwoFactorCode = os.Args[i+1]
-		case "-l":
-			details.LoginKey = os.Args[i+1]
-		default:
-			fmt.Println(usage)
-			return
-		}
+	details := &gsbot.LogOnDetails{
+		Username: os.Args[1], 
+		Password: os.Args[2],
+		AuthCode: authcode,
 	}
 
 	bot := gsbot.Default()
