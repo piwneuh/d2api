@@ -5,6 +5,8 @@
 //
 //     gsbot [username] [password]
 //     gsbot [username] [password] [authcode]
+// Valid servers: https://api.steampowered.com/ISteamDirectory/GetCMList/v1/?cellId=0
+
 package main
 
 import (
@@ -46,6 +48,11 @@ func main() {
 	authcode := ""
 	if len(os.Args) > 3 {
 		authcode = os.Args[3]
+	}
+
+	err := steam.InitializeSteamDirectory()
+	if err != nil {
+		panic(err)
 	}
 
 	details := &gsbot.LogOnDetails{
