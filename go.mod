@@ -1,4 +1,4 @@
-module d2api
+module github.com/piwneuh/d2api
 
 go 1.21.1
 

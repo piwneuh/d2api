@@ -11,6 +11,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/piwneuh/d2api/internal/api"
 	"log"
 	"os"
 	"time"
@@ -20,12 +21,11 @@ import (
 	"github.com/paralin/go-steam"
 	"github.com/paralin/go-steam/gsbot"
 	"github.com/paralin/go-steam/protocol/steamlang"
-	"github.com/paralin/go-steam/steamid"
 	"github.com/sirupsen/logrus"
 )
 
 func main() {
-	
+
 	if len(os.Args) < 3 {
 		fmt.Println("gsbot example\nusage: \n\tgsbot [username] [password] [authcode]")
 		return
@@ -72,12 +72,16 @@ func main() {
 
 		case *steam.PersonaStateEvent:
 			fmt.Printf("Successfully logged on as %s\n", e.Name) // Here it is connected to steam client
-			Connect2Dota(client)
+			dotaClient := Connect2Dota(client)
+			_, err := api.New(client, dotaClient)
+			if err != nil {
+				return
+			}
 		}
 	}
 }
 
-func Connect2Dota(client *steam.Client) {
+func Connect2Dota(client *steam.Client) *dota2.Dota2 {
 
 	println("Connecting to dota2")
 
@@ -90,29 +94,26 @@ func Connect2Dota(client *steam.Client) {
 	}
 
 	// SOCACHE MECHANISM
-	eventCh, eventCancel, err:= dotaClient.GetCache().SubscribeType(cso.Lobby) // Listen to lobby cache
+	eventCh, eventCancel, err := dotaClient.GetCache().SubscribeType(cso.Lobby) // Listen to lobby cache
 	if err != nil {
 		log.Fatalf("Failed to subscribe to lobby cache: %v", err)
 	}
 
-	dotaClient.InviteLobbyMember(76561198153440660) 
+	dotaClient.InviteLobbyMember(76561198153440660)
 	defer eventCancel()
 
 	lobbyEvent := <-eventCh
 	lobby := lobbyEvent.Object.String()
 	log.Printf("Lobby: %v", lobby)
 
-	time.Sleep(30 * time.Second)
+	time.Sleep(3 * time.Second)
 
 	dotaClient.LaunchLobby()
 	println("Launched lobby")
 
-	time.Sleep(30 * time.Second)
-}
+	time.Sleep(3 * time.Second)
 
-func InviteToLobby(dotaClient *dota2.Dota2, steamId steamid.SteamId) {
-	println("Inviting to lobby")
-	dotaClient.InviteLobbyMember(steamId)
+	return dotaClient
 }
 
 func LaunchGame(dotaClient *dota2.Dota2) {

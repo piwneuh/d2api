@@ -1,5 +1,5 @@
 package dtos
 
-type inviteLobbyReq struct {
-	SteamId string `json:"steamId"`
+type InviteLobbyReq struct {
+	SteamId uint64 `json:"steamId"`
 }
