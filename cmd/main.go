@@ -20,11 +20,12 @@ import (
 	"github.com/paralin/go-steam"
 	"github.com/paralin/go-steam/gsbot"
 	"github.com/paralin/go-steam/protocol/steamlang"
+	"github.com/paralin/go-steam/steamid"
 	"github.com/sirupsen/logrus"
 )
 
 func main() {
-
+	
 	if len(os.Args) < 3 {
 		fmt.Println("gsbot example\nusage: \n\tgsbot [username] [password] [authcode]")
 		return
@@ -107,4 +108,14 @@ func Connect2Dota(client *steam.Client) {
 	println("Launched lobby")
 
 	time.Sleep(30 * time.Second)
+}
+
+func InviteToLobby(dotaClient *dota2.Dota2, steamId steamid.SteamId) {
+	println("Inviting to lobby")
+	dotaClient.InviteLobbyMember(steamId)
+}
+
+func LaunchGame(dotaClient *dota2.Dota2) {
+	println("Launching lobby")
+	dotaClient.LaunchLobby()
 }
