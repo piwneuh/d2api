@@ -24,12 +24,9 @@ func New(steamClient *steam.Client, dotaClient *dota2.Dota2) (*Handler, error) {
 	return handler, nil
 }
 
-// This function's name is a must. App Engine uses it to drive the requests properly.
 func (h *Handler) init() {
-	// Starts a new Gin instance with no middle-ware
 	r := gin.New()
 
-	// Define your handlers
 	r.GET("/", func(c *gin.Context) {
 		c.String(http.StatusOK, "Hello World!")
 	})
@@ -47,12 +44,12 @@ func (h *Handler) init() {
 		c.String(http.StatusOK, "Invite user with steamId %s successfully", req.SteamId)
 	})
 
-	println("Starting server")
 	err := r.Run()
 	if err != nil {
 		println("Failed to start server")
 		return
 	}
+	println("Server started")
 }
 
 func (h *Handler) InviteToLobby(steamId steamid.SteamId) {

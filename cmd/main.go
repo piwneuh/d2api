@@ -10,7 +10,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"github.com/paralin/go-dota2/protocol"
+	"github.com/paralin/go-steam/steamid"
 	"github.com/piwneuh/d2api/internal/api"
 	"log"
 	"os"
@@ -99,7 +102,9 @@ func Connect2Dota(client *steam.Client) *dota2.Dota2 {
 		log.Fatalf("Failed to subscribe to lobby cache: %v", err)
 	}
 
+	//CreateLobby(dotaClient)
 	dotaClient.InviteLobbyMember(76561198153440660)
+	//dotaClient.SetLobbyCoach(5)
 	defer eventCancel()
 
 	lobbyEvent := <-eventCh
@@ -119,4 +124,57 @@ func Connect2Dota(client *steam.Client) *dota2.Dota2 {
 func LaunchGame(dotaClient *dota2.Dota2) {
 	println("Launching lobby")
 	dotaClient.LaunchLobby()
+}
+
+func InviteToLobby(dotaClient *dota2.Dota2, steamId steamid.SteamId) {
+	println("Inviting to lobby")
+	dotaClient.InviteLobbyMember(steamId)
+}
+
+func CreateLobby(dotaClient *dota2.Dota2) {
+	//teamDetails1 := &protocol.CMsgDOTACreateTeam{
+	//	Name: proto.String("Example Team1"),
+	//	Tag:  proto.String("TAG1"),
+	//}
+	//teamDetails2 := &protocol.CMsgDOTACreateTeam{
+	//	Name: proto.String("Example Team2"),
+	//	Tag:  proto.String("TAG2"),
+	//}
+	//team1, _ := CreateTeam(dotaClient, teamDetails1)
+	//team2, _ := CreateTeam(dotaClient, teamDetails2)
+	//time.Sleep(2 * time.Second)
+	//log.Print("Team 1: ", team1)
+	//log.Print("Team 2: ", team2)
+
+	info, err := dotaClient.RequestMyTeamInfo(context.Background())
+	if err != nil {
+		return
+	}
+	println("My team info: ", info)
+
+	// LOBBY CREATION
+	//cLobbyTeamDetails1 := protocol.CLobbyTeamDetails{
+	//	TeamId:       proto.Uint32(team1.GetTeamId()),
+	//	TeamName:     proto.String(),
+	//	TeamTag:      proto.String("radiant"),
+	//	TeamComplete: proto.Bool(true),
+	//}
+	//
+	//cLobbyTeamDetails2 := protocol.CLobbyTeamDetails{
+	//	TeamId:       proto.Uint32(team2.GetTeamId()),
+	//	TeamName:     proto.String("4glory"),
+	//	TeamTag:      proto.String("4glory"),
+	//	TeamComplete: proto.Bool(true),
+	//}
+	//
+	//dotaClient.CreateLobby()
+}
+
+func CreateTeam(dotaClient *dota2.Dota2, teamDetails *protocol.CMsgDOTACreateTeam) (*protocol.CMsgDOTACreateTeamResponse, error) {
+	team, err := dotaClient.CreateTeam(context.Background(), teamDetails)
+	if err != nil {
+		log.Fatalf("Failed to create team: %v", err)
+	}
+	log.Printf("Team: %v", team)
+	return team, err
 }
