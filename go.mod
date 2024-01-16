@@ -5,7 +5,7 @@ go 1.21.1
 require (
 	github.com/gin-gonic/gin v1.9.1
 	github.com/paralin/go-dota2 v0.0.0-20230812030130-d63690b89ff0
-	github.com/paralin/go-steam v0.0.0-20230323124938-41e2a40a56ff
+	github.com/paralin/go-steam v0.0.0-20231025185642-e7c8d97e052a
 	github.com/sirupsen/logrus v1.9.3
 )
 
@@ -36,6 +36,6 @@ require (
 	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
-	google.golang.org/protobuf v1.31.0 // indirect
+	google.golang.org/protobuf v1.32.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
