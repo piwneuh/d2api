@@ -121,7 +121,11 @@ func main() {
 			fmt.Printf("Error: %v", e)
 		case *steam.LoggedOnEvent:
 			handler.steamClient.Social.SetPersonaState(steamlang.EPersonaState_Online)
-
+		
+		case *steam.LoggedOffEvent:
+			fmt.Printf("Logged off: %v", e.Result)
+			handler.steamClient.Disconnect()
+			
 		case *steam.PersonaStateEvent:
 			fmt.Printf("Successfully logged on as %s\n", e.Name) // Here it is connected to steam client
 			
