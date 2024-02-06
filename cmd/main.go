@@ -1,68 +1,117 @@
-// A simple example that uses the modules from the gsbot package and go-steam to log on
-// to the Steam network.
-//
-// The command expects log on data, optionally with an auth code:
-//
-//     gsbot [username] [password]
-//     gsbot [username] [password] [authcode]
-// Valid servers: https://api.steampowered.com/ISteamDirectory/GetCMList/v1/?cellId=0
-
 package main
 
 import (
-	"context"
 	"fmt"
-	"github.com/paralin/go-dota2/protocol"
-	"github.com/paralin/go-steam/steamid"
-	"github.com/piwneuh/d2api/internal/api"
 	"log"
 	"os"
-	"time"
+	"strconv"
 
+	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"github.com/paralin/go-dota2"
 	"github.com/paralin/go-dota2/cso"
+	"github.com/paralin/go-dota2/protocol"
 	"github.com/paralin/go-steam"
 	"github.com/paralin/go-steam/gsbot"
 	"github.com/paralin/go-steam/protocol/steamlang"
+	steamId "github.com/paralin/go-steam/steamid"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/proto"
 )
 
+type handler struct {
+	steamClient *steam.Client
+	dotaClient  *dota2.Dota2
+}
+
 func main() {
+	loadEnv()
 
-	if len(os.Args) < 3 {
-		fmt.Println("gsbot example\nusage: \n\tgsbot [username] [password] [authcode]")
-		return
+	// Initialize the handler with uninitialized clients
+	handler := &handler{}
+
+	// Initialize the bot
+	details := &gsbot.LogOnDetails{
+		Username: os.Getenv("STEAM_USERNAME"),
+		Password: os.Getenv("STEAM_PASSWORD"),
 	}
 
-	// optional auth code
-	authcode := ""
-	if len(os.Args) > 3 {
-		authcode = os.Args[3]
-	}
+	// Start the web server
+	r := gin.Default()
 
+	// Health check
+	r.GET("/", func(c *gin.Context) {
+		
+		c.JSON(200, gin.H{
+			"message": "Alive it is!",
+		})
+	})
+
+	// Create Lobby
+	r.POST("/lobby", func(c *gin.Context) {
+
+		lobbyVisibility := protocol.DOTALobbyVisibility_DOTALobbyVisibility_Public
+
+		lobbyDetails := &protocol.CMsgPracticeLobbySetDetails{
+			GameName:            proto.String("RELATIVE"),
+			Visibility: 		 &lobbyVisibility, 
+		}
+		handler.dotaClient.CreateLobby(lobbyDetails)
+
+		c.JSON(200, gin.H{
+			"message": "Lobby has been created",
+		})
+	})
+
+	// Invite a player to the lobby
+	r.POST("/invite/:steamId", func(c *gin.Context) {
+		id := c.Param("steamId")
+		log.Printf("Inviting player with steamId: %v", id)
+		uintId, err := strconv.ParseUint(id, 10, 64)
+		if err != nil {
+			log.Fatal(err)
+		}
+		handler.dotaClient.InviteLobbyMember(steamId.SteamId(uintId))
+
+		c.JSON(200, gin.H{
+			"message": "Player has been invited",
+		})
+	})
+
+	// Start the lobby
+	r.POST("/start", func(c *gin.Context) {
+		handler.dotaClient.LaunchLobby()
+		c.JSON(200, gin.H{
+			"message": "Lobby has been started",
+		})
+	})
+
+
+	// Start the web server
+	go func() {
+		err := r.Run(":8080")
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+	
 	err := steam.InitializeSteamDirectory()
 	if err != nil {
 		panic(err)
 	}
 
-	details := &gsbot.LogOnDetails{
-		Username: os.Args[1],
-		Password: os.Args[2],
-		AuthCode: authcode,
-	}
-
 	bot := gsbot.Default()
-	client := bot.Client
+	handler.steamClient = bot.Client
 	auth := gsbot.NewAuth(bot, details, "sentry.bin")
 	debug, err := gsbot.NewDebug(bot, "debug")
 	if err != nil {
 		panic(err)
 	}
-	client.RegisterPacketHandler(debug)
+	handler.steamClient.RegisterPacketHandler(debug)
 	serverList := gsbot.NewServerList(bot, "serverlist.json")
 	serverList.Connect()
 
-	for event := range client.Events() {
+	for event := range handler.steamClient.Events() {
 		auth.HandleEvent(event)
 		debug.HandleEvent(event)
 		serverList.HandleEvent(event)
@@ -71,110 +120,34 @@ func main() {
 		case error:
 			fmt.Printf("Error: %v", e)
 		case *steam.LoggedOnEvent:
-			client.Social.SetPersonaState(steamlang.EPersonaState_Online)
+			handler.steamClient.Social.SetPersonaState(steamlang.EPersonaState_Online)
 
 		case *steam.PersonaStateEvent:
 			fmt.Printf("Successfully logged on as %s\n", e.Name) // Here it is connected to steam client
-			dotaClient := Connect2Dota(client)
-			_, err := api.New(client, dotaClient)
+			
+			println("Connecting to dota2")
+
+			handler.dotaClient = dota2.New(handler.steamClient, logrus.New())
+			handler.dotaClient.SetPlaying(true)
+
+			// SOCACHE MECHANISM
+			eventCh, eventCancel, err := handler.dotaClient.GetCache().SubscribeType(cso.Lobby) // Listen to lobby cache
 			if err != nil {
-				return
+				log.Fatalf("Failed to subscribe to lobby cache: %v", err)
 			}
+
+			defer eventCancel()
+			
+			lobbyEvent := <- eventCh
+			lobby := lobbyEvent.Object.String()
+			log.Printf("Lobby: %v", lobby)
 		}
 	}
 }
 
-func Connect2Dota(client *steam.Client) *dota2.Dota2 {
-
-	println("Connecting to dota2")
-
-	dotaClient := dota2.New(client, logrus.New())
-	dotaClient.SetPlaying(true)
-
-	for i := 0; i < 10; i++ {
-		time.Sleep(1 * time.Second)
-		dotaClient.SayHello()
-	}
-
-	// SOCACHE MECHANISM
-	eventCh, eventCancel, err := dotaClient.GetCache().SubscribeType(cso.Lobby) // Listen to lobby cache
+func loadEnv() {
+	err := godotenv.Load()
 	if err != nil {
-		log.Fatalf("Failed to subscribe to lobby cache: %v", err)
+		log.Fatal("Error loading .env file")
 	}
-
-	//CreateLobby(dotaClient)
-	dotaClient.InviteLobbyMember(76561198153440660)
-	//dotaClient.SetLobbyCoach(5)
-	defer eventCancel()
-
-	lobbyEvent := <-eventCh
-	lobby := lobbyEvent.Object.String()
-	log.Printf("Lobby: %v", lobby)
-
-	time.Sleep(3 * time.Second)
-
-	dotaClient.LaunchLobby()
-	println("Launched lobby")
-
-	time.Sleep(3 * time.Second)
-
-	return dotaClient
-}
-
-func LaunchGame(dotaClient *dota2.Dota2) {
-	println("Launching lobby")
-	dotaClient.LaunchLobby()
-}
-
-func InviteToLobby(dotaClient *dota2.Dota2, steamId steamid.SteamId) {
-	println("Inviting to lobby")
-	dotaClient.InviteLobbyMember(steamId)
-}
-
-func CreateLobby(dotaClient *dota2.Dota2) {
-	//teamDetails1 := &protocol.CMsgDOTACreateTeam{
-	//	Name: proto.String("Example Team1"),
-	//	Tag:  proto.String("TAG1"),
-	//}
-	//teamDetails2 := &protocol.CMsgDOTACreateTeam{
-	//	Name: proto.String("Example Team2"),
-	//	Tag:  proto.String("TAG2"),
-	//}
-	//team1, _ := CreateTeam(dotaClient, teamDetails1)
-	//team2, _ := CreateTeam(dotaClient, teamDetails2)
-	//time.Sleep(2 * time.Second)
-	//log.Print("Team 1: ", team1)
-	//log.Print("Team 2: ", team2)
-
-	info, err := dotaClient.RequestMyTeamInfo(context.Background())
-	if err != nil {
-		return
-	}
-	println("My team info: ", info)
-
-	// LOBBY CREATION
-	//cLobbyTeamDetails1 := protocol.CLobbyTeamDetails{
-	//	TeamId:       proto.Uint32(team1.GetTeamId()),
-	//	TeamName:     proto.String(),
-	//	TeamTag:      proto.String("radiant"),
-	//	TeamComplete: proto.Bool(true),
-	//}
-	//
-	//cLobbyTeamDetails2 := protocol.CLobbyTeamDetails{
-	//	TeamId:       proto.Uint32(team2.GetTeamId()),
-	//	TeamName:     proto.String("4glory"),
-	//	TeamTag:      proto.String("4glory"),
-	//	TeamComplete: proto.Bool(true),
-	//}
-	//
-	//dotaClient.CreateLobby()
-}
-
-func CreateTeam(dotaClient *dota2.Dota2, teamDetails *protocol.CMsgDOTACreateTeam) (*protocol.CMsgDOTACreateTeamResponse, error) {
-	team, err := dotaClient.CreateTeam(context.Background(), teamDetails)
-	if err != nil {
-		log.Fatalf("Failed to create team: %v", err)
-	}
-	log.Printf("Team: %v", team)
-	return team, err
 }
