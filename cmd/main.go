@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -125,7 +126,7 @@ func main() {
 		case *steam.LoggedOffEvent:
 			fmt.Printf("Logged off: %v", e.Result)
 			handler.steamClient.Disconnect()
-			
+		
 		case *steam.PersonaStateEvent:
 			fmt.Printf("Successfully logged on as %s\n", e.Name) // Here it is connected to steam client
 			
@@ -133,6 +134,11 @@ func main() {
 
 			handler.dotaClient = dota2.New(handler.steamClient, logrus.New())
 			handler.dotaClient.SetPlaying(true)
+
+			for i := 0; i < 10; i++ {
+				time.Sleep(1 * time.Second)
+				handler.dotaClient.SayHello()
+			}
 
 			// SOCACHE MECHANISM
 			eventCh, eventCancel, err := handler.dotaClient.GetCache().SubscribeType(cso.Lobby) // Listen to lobby cache
