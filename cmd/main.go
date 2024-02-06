@@ -1,11 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -13,7 +11,6 @@ import (
 	"github.com/paralin/go-dota2/cso"
 	"github.com/paralin/go-dota2/protocol"
 	"github.com/paralin/go-steam"
-	"github.com/paralin/go-steam/gsbot"
 	"github.com/paralin/go-steam/protocol/steamlang"
 	steamId "github.com/paralin/go-steam/steamid"
 	"github.com/sirupsen/logrus"
@@ -28,15 +25,69 @@ type handler struct {
 func main() {
 	loadEnv()
 
-	// Initialize the handler with uninitialized clients
-	handler := &handler{}
+	// Initialize the handler with empty clients
+	handler := handler{}
 
-	// Initialize the bot
-	details := &gsbot.LogOnDetails{
+	initGinServer(&handler)
+
+	initSteamConnection(&handler)
+
+}
+
+func initSteamConnection(handler *handler) {
+	
+	// Grab the steam credentials from the environment
+	details := &steam.LogOnDetails{
 		Username: os.Getenv("STEAM_USERNAME"),
 		Password: os.Getenv("STEAM_PASSWORD"),
 	}
+	
+	// Grab actual server list
+	err := steam.InitializeSteamDirectory()
+	if err != nil {
+		panic(err)
+	}
 
+	// Initialize the steam client
+	handler.steamClient = steam.NewClient()
+	handler.steamClient.Connect()
+
+	// Listen to events happening on steam client
+	for event := range handler.steamClient.Events() {
+		switch e := event.(type) {
+		case *steam.ConnectedEvent:
+			log.Println("Connected to steam network, trying to log in...")
+			handler.steamClient.Auth.LogOn(details)
+		case *steam.LoggedOnEvent:
+			log.Println("Successfully logged on to steam")		
+			// Set account state to online
+			handler.steamClient.Social.SetPersonaState(steamlang.EPersonaState_Online)
+
+			// Once logged in, we can initialize the dota2 client
+			handler.dotaClient = dota2.New(handler.steamClient, logrus.New())
+			handler.dotaClient.SetPlaying(true)
+
+
+			// Try to get a session
+			handler.dotaClient.SayHello()
+
+			eventCh, _, err := handler.dotaClient.GetCache().SubscribeType(cso.Lobby) // Listen to lobby cache
+			if err != nil {
+				log.Fatalf("Failed to subscribe to lobby cache: %v", err)
+			}
+	
+			lobbyEvent := <- eventCh
+			lobby := lobbyEvent.Object.String()
+			log.Printf("Lobby: %v", lobby)
+
+		case steam.FatalErrorEvent:
+			log.Println("Fatal error occurred: ", e.Error()) 
+		}
+	}
+}
+
+
+func initGinServer(handler *handler) {
 	// Start the web server
 	r := gin.Default()
 
@@ -95,64 +146,6 @@ func main() {
 			log.Fatal(err)
 		}
 	}()
-	
-	err := steam.InitializeSteamDirectory()
-	if err != nil {
-		panic(err)
-	}
-
-	bot := gsbot.Default()
-	handler.steamClient = bot.Client
-	auth := gsbot.NewAuth(bot, details, "sentry.bin")
-	debug, err := gsbot.NewDebug(bot, "debug")
-	if err != nil {
-		panic(err)
-	}
-	handler.steamClient.RegisterPacketHandler(debug)
-	serverList := gsbot.NewServerList(bot, "serverlist.json")
-	serverList.Connect()
-
-	for event := range handler.steamClient.Events() {
-		auth.HandleEvent(event)
-		debug.HandleEvent(event)
-		serverList.HandleEvent(event)
-
-		switch e := event.(type) {
-		case error:
-			fmt.Printf("Error: %v", e)
-		case *steam.LoggedOnEvent:
-			handler.steamClient.Social.SetPersonaState(steamlang.EPersonaState_Online)
-		
-		case *steam.LoggedOffEvent:
-			fmt.Printf("Logged off: %v", e.Result)
-			handler.steamClient.Disconnect()
-		
-		case *steam.PersonaStateEvent:
-			fmt.Printf("Successfully logged on as %s\n", e.Name) // Here it is connected to steam client
-			
-			println("Connecting to dota2")
-
-			handler.dotaClient = dota2.New(handler.steamClient, logrus.New())
-			handler.dotaClient.SetPlaying(true)
-
-			for i := 0; i < 10; i++ {
-				time.Sleep(1 * time.Second)
-				handler.dotaClient.SayHello()
-			}
-
-			// SOCACHE MECHANISM
-			eventCh, eventCancel, err := handler.dotaClient.GetCache().SubscribeType(cso.Lobby) // Listen to lobby cache
-			if err != nil {
-				log.Fatalf("Failed to subscribe to lobby cache: %v", err)
-			}
-
-			defer eventCancel()
-			
-			lobbyEvent := <- eventCh
-			lobby := lobbyEvent.Object.String()
-			log.Printf("Lobby: %v", lobby)
-		}
-	}
 }
 
 func loadEnv() {
