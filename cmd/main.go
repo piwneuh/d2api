@@ -67,7 +67,6 @@ func initSteamConnection(handler *handler) {
 			handler.dotaClient = dota2.New(handler.steamClient, logrus.New())
 			handler.dotaClient.SetPlaying(true)
 
-
 			// Try to get a session
 			handler.dotaClient.SayHello()
 
@@ -106,7 +105,8 @@ func initGinServer(handler *handler) {
 
 		lobbyDetails := &protocol.CMsgPracticeLobbySetDetails{
 			GameName:            proto.String("RELATIVE"),
-			Visibility: 		 &lobbyVisibility, 
+			Visibility: 		 &lobbyVisibility,
+			PassKey: 		   	 proto.String("test"),
 		}
 		handler.dotaClient.CreateLobby(lobbyDetails)
 
