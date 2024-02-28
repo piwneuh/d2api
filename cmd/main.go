@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -67,6 +68,8 @@ func initSteamConnection(handler *handler) {
 			handler.dotaClient = dota2.New(handler.steamClient, logrus.New())
 			handler.dotaClient.SetPlaying(true)
 
+			time.Sleep(1 * time.Second)
+
 			// Try to get a session
 			handler.dotaClient.SayHello()
 
@@ -104,15 +107,35 @@ func initGinServer(handler *handler) {
 		lobbyVisibility := protocol.DOTALobbyVisibility_DOTALobbyVisibility_Public
 
 		lobbyDetails := &protocol.CMsgPracticeLobbySetDetails{
-			GameName:            proto.String("RELATIVE"),
+			GameName:            proto.String("CirkoBrat"),
 			Visibility: 		 &lobbyVisibility,
-			PassKey: 		   	 proto.String("test"),
+			PassKey: 		   	 proto.String("1234"),
+			ServerRegion: 	  	 proto.Uint32(3),
 		}
 		handler.dotaClient.CreateLobby(lobbyDetails)
 
 		c.JSON(200, gin.H{
 			"message": "Lobby has been created",
 		})
+	})
+
+	// Destory the lobby
+	r.DELETE("/lobby", func(c *gin.Context) {
+		res, err := handler.dotaClient.DestroyLobby(c)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(200, gin.H{
+				"message": "Lobby has been destroyed",
+				"response": res,
+			})
+		}
+	})
+
+	r.POST("/move-to-coach", func(c *gin.Context) {
+		team := protocol.DOTA_GC_TEAM_DOTA_GC_TEAM_GOOD_GUYS
+		handler.dotaClient.SetLobbyCoach(team)
+		c.JSON(200, gin.H{ "message": "Moved to coach" })
 	})
 
 	// Invite a player to the lobby
