@@ -36,13 +36,13 @@ func main() {
 }
 
 func initSteamConnection(handler *handler) {
-	
+
 	// Grab the steam credentials from the environment
 	details := &steam.LogOnDetails{
 		Username: os.Getenv("STEAM_USERNAME"),
 		Password: os.Getenv("STEAM_PASSWORD"),
 	}
-	
+
 	// Grab actual server list
 	err := steam.InitializeSteamDirectory()
 	if err != nil {
@@ -60,7 +60,7 @@ func initSteamConnection(handler *handler) {
 			log.Println("Connected to steam network, trying to log in...")
 			handler.steamClient.Auth.LogOn(details)
 		case *steam.LoggedOnEvent:
-			log.Println("Successfully logged on to steam")		
+			log.Println("Successfully logged on to steam")
 			// Set account state to online
 			handler.steamClient.Social.SetPersonaState(steamlang.EPersonaState_Online)
 
@@ -77,17 +77,42 @@ func initSteamConnection(handler *handler) {
 			if err != nil {
 				log.Fatalf("Failed to subscribe to lobby cache: %v", err)
 			}
-	
-			lobbyEvent := <- eventCh
+
+			lobbyEvent := <-eventCh
 			lobby := lobbyEvent.Object.String()
 			log.Printf("Lobby: %v", lobby)
 
 		case steam.FatalErrorEvent:
-			log.Println("Fatal error occurred: ", e.Error()) 
+			log.Println("Fatal error occurred: ", e.Error())
 		}
 	}
 }
 
+func getGoodAndBadGuys(lobby *protocol.CSODOTALobby) ([]protocol.CSODOTALobbyMember, []protocol.CSODOTALobbyMember, error) {
+	goodGuys := make([]protocol.CSODOTALobbyMember, 0)
+	badGuys := make([]protocol.CSODOTALobbyMember, 0)
+
+	for _, member := range lobby.AllMembers {
+		log.Println(*member.Team)
+		if *member.Team == protocol.DOTA_GC_TEAM_DOTA_GC_TEAM_GOOD_GUYS {
+			goodGuys = append(goodGuys, *member)
+		} else if *member.Team == protocol.DOTA_GC_TEAM_DOTA_GC_TEAM_BAD_GUYS {
+			badGuys = append(badGuys, *member)
+		}
+	}
+
+	return goodGuys, badGuys, nil
+}
+
+func getCurrentLobby(handler *handler) (*protocol.CSODOTALobby, error) {
+	lobby, err := handler.dotaClient.GetCache().GetContainerForTypeID(cso.Lobby)
+	if err != nil {
+		log.Fatalf("Failed to get lobby: %v", err)
+		return nil, err
+	}
+
+	return lobby.GetOne().(*protocol.CSODOTALobby), nil
+}
 
 func initGinServer(handler *handler) {
 	// Start the web server
@@ -95,7 +120,7 @@ func initGinServer(handler *handler) {
 
 	// Health check
 	r.GET("/", func(c *gin.Context) {
-		
+
 		c.JSON(200, gin.H{
 			"message": "Alive it is!",
 		})
@@ -103,14 +128,13 @@ func initGinServer(handler *handler) {
 
 	// Create Lobby
 	r.POST("/lobby", func(c *gin.Context) {
-
 		lobbyVisibility := protocol.DOTALobbyVisibility_DOTALobbyVisibility_Public
 
 		lobbyDetails := &protocol.CMsgPracticeLobbySetDetails{
-			GameName:            proto.String("CirkoBrat"),
-			Visibility: 		 &lobbyVisibility,
-			PassKey: 		   	 proto.String("1234"),
-			ServerRegion: 	  	 proto.Uint32(3),
+			GameName:     proto.String("CirkoBrat"),
+			Visibility:   &lobbyVisibility,
+			PassKey:      proto.String("1234"),
+			ServerRegion: proto.Uint32(3),
 		}
 		handler.dotaClient.CreateLobby(lobbyDetails)
 
@@ -126,7 +150,7 @@ func initGinServer(handler *handler) {
 			c.JSON(500, gin.H{"error": err.Error()})
 		} else {
 			c.JSON(200, gin.H{
-				"message": "Lobby has been destroyed",
+				"message":  "Lobby has been destroyed",
 				"response": res,
 			})
 		}
@@ -135,7 +159,7 @@ func initGinServer(handler *handler) {
 	r.POST("/move-to-coach", func(c *gin.Context) {
 		team := protocol.DOTA_GC_TEAM_DOTA_GC_TEAM_GOOD_GUYS
 		handler.dotaClient.SetLobbyCoach(team)
-		c.JSON(200, gin.H{ "message": "Moved to coach" })
+		c.JSON(200, gin.H{"message": "Moved to coach"})
 	})
 
 	// Invite a player to the lobby
@@ -161,6 +185,72 @@ func initGinServer(handler *handler) {
 		})
 	})
 
+	// Get Lobby information
+	r.GET("/lobby", func(c *gin.Context) {
+		lobby, err := getCurrentLobby(handler)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"lobby": lobby,
+		})
+	})
+
+	// Get if lobby is ready
+	r.POST("/lobby/ready/", func(c *gin.Context) {
+		// Get the list of goodGuys and badGuys from the request body
+		var request struct {
+			GoodGuys []uint64 `json:"goodGuys"`
+			BadGuys  []uint64 `json:"badGuys"`
+		}
+		if err := c.ShouldBindJSON(&request); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+
+		lobby, err := getCurrentLobby(handler)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		goodGuys, badGuys, err := getGoodAndBadGuys(lobby)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Check if the goodGuys and badGuys are ready
+		for _, id := range request.GoodGuys {
+			ready := false
+			for _, goodGuy := range goodGuys {
+				if *goodGuy.Id == id && goodGuy.CoachTeam == nil {
+					ready = true
+				}
+			}
+			if !ready {
+				c.JSON(200, gin.H{"ready": false})
+				return
+			}
+		}
+
+		for _, id := range request.BadGuys {
+			ready := false
+			for _, badGuy := range badGuys {
+				if *badGuy.Id == id && badGuy.CoachTeam == nil {
+					ready = true
+				}
+			}
+			if !ready {
+				c.JSON(200, gin.H{"ready": false})
+				return
+			}
+		}
+
+		c.JSON(200, gin.H{"ready": true})
+	})
 
 	// Start the web server
 	go func() {
