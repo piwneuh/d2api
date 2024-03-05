@@ -252,6 +252,33 @@ func initGinServer(handler *handler) {
 		c.JSON(200, gin.H{"ready": true})
 	})
 
+	r.GET("/match-history/:accountId", func(c *gin.Context) {
+		accountId := c.Param("accountId")
+		parsedId, err := strconv.ParseUint(accountId, 10, 32)
+		if err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+		uintId := uint32(parsedId)
+		log.Println("ACCOUNT ID", uintId)
+
+		var req protocol.CMsgDOTAGetPlayerMatchHistory
+		req.AccountId = &uintId
+		req.IncludeCustomGames = proto.Bool(true)
+		req.IncludeEventGames = proto.Bool(true)
+		req.IncludePracticeMatches = proto.Bool(true)
+
+		log.Println("REQRQERQ", req)
+
+		matchHistory, err := handler.dotaClient.GetPlayerMatchHistory(c, &req)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		} else {
+			c.JSON(200, gin.H{"matchHistory": matchHistory})
+		}
+	})
+
 	// Start the web server
 	go func() {
 		err := r.Run(":8080")
