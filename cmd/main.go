@@ -189,13 +189,11 @@ func initGinServer(handler *handler) {
 	r.GET("/lobby", func(c *gin.Context) {
 		lobby, err := getCurrentLobby(handler)
 		if err != nil {
-			c.JSON(500, gin.H{"error": err.Error()})
+			c.JSON(500, gin.H{"error": "No current lobby found"})
 			return
+		} else {
+			c.JSON(200, gin.H{"lobby": lobby})
 		}
-
-		c.JSON(200, gin.H{
-			"lobby": lobby,
-		})
 	})
 
 	// Get if lobby is ready
@@ -294,6 +292,11 @@ func initGinServer(handler *handler) {
 		} else {
 			c.JSON(200, gin.H{"details": details})
 		}
+	})
+
+	r.DELETE("/leave-lobby/", func(c *gin.Context) {
+		handler.dotaClient.AbandonLobby()
+		c.JSON(200, gin.H{"message": "Lobby has been abandoned"})
 	})
 
 	// Start the web server
