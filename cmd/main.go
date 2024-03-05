@@ -268,7 +268,7 @@ func initGinServer(handler *handler) {
 		req.IncludeEventGames = proto.Bool(true)
 		req.IncludePracticeMatches = proto.Bool(true)
 
-		log.Println("REQRQERQ", req)
+		log.Println("REQRQERQ", &req)
 
 		matchHistory, err := handler.dotaClient.GetPlayerMatchHistory(c, &req)
 		if err != nil {
@@ -276,6 +276,23 @@ func initGinServer(handler *handler) {
 			return
 		} else {
 			c.JSON(200, gin.H{"matchHistory": matchHistory})
+		}
+	})
+
+	r.GET("/match-details/:matchId", func(c *gin.Context) {
+		matchId := c.Param("matchId")
+		parsedId, err := strconv.ParseUint(matchId, 10, 64)
+		if err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+
+		details, err := handler.dotaClient.RequestMatchDetails(c, uint64(parsedId))
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		} else {
+			c.JSON(200, gin.H{"details": details})
 		}
 	})
 
