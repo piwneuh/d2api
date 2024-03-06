@@ -128,13 +128,23 @@ func initGinServer(handler *handler) {
 
 	// Create Lobby
 	r.POST("/lobby", func(c *gin.Context) {
+		var req struct {
+			GameName     string `json:"gameName"`
+			PassKey      string `json:"passKey"`
+			ServerRegion uint32 `json:"serverRegion"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+
 		lobbyVisibility := protocol.DOTALobbyVisibility_DOTALobbyVisibility_Public
 
 		lobbyDetails := &protocol.CMsgPracticeLobbySetDetails{
-			GameName:     proto.String("CirkoBrat"),
+			GameName:     proto.String(req.GameName),
 			Visibility:   &lobbyVisibility,
-			PassKey:      proto.String("1234"),
-			ServerRegion: proto.Uint32(3),
+			PassKey:      proto.String(req.PassKey),
+			ServerRegion: proto.Uint32(req.ServerRegion),
 		}
 		handler.dotaClient.CreateLobby(lobbyDetails)
 
