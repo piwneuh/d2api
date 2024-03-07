@@ -104,6 +104,7 @@ func (s *MatchService) ScheduleMatch(c *gin.Context, req requests.CreateMatchReq
 	time.Sleep(1 * time.Second)
 
 	s.Handler.DotaClient.SetLobbyCoach(protocol.DOTA_GC_TEAM_DOTA_GC_TEAM_GOOD_GUYS)
+	time.Sleep(1 * time.Second)
 
 	// Invite the teamA
 	for _, id := range req.TeamA {
