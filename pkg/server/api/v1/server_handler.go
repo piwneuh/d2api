@@ -13,6 +13,7 @@ func RegisterServer(router *gin.Engine, ctx context.Context) {
 	{
 		v1.POST("/ScheduleMatch", scheduleMatch)
 		v1.GET("/GetMatchDetails", getMatchDetails)
+		v1.GET("/lobby", getLobby)
 	}
 }
 
@@ -36,4 +37,14 @@ func getMatchDetails(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{"details": details})
+}
+
+func getLobby(c *gin.Context) {
+	lobby, err := wires.Instance.MatchService.GetLobby(c)
+	if err != nil {
+		c.JSON(400, gin.H{"msg": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"lobby": lobby})
 }

@@ -191,3 +191,12 @@ func runningThread(handler *handlers.Handler, req requests.CreateMatchReq, match
 	//Abandon the lobby
 	handler.DotaClient.AbandonLobby()
 }
+
+func (s *MatchService) GetLobby(c *gin.Context) (*protocol.CSODOTALobby, error) {
+	lobby, err := utils.GetCurrentLobby(s.Handler)
+	if err != nil {
+		log.Fatalf("Failed to get lobby: %v", err)
+		return nil, err
+	}
+	return lobby, nil
+}
