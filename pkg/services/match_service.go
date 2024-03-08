@@ -147,13 +147,15 @@ func (s *MatchService) GetMatchDetails(c *gin.Context, matchIdx string) (*protoc
 }
 
 func runningThread(handler *handlers.Handler, req requests.CreateMatchReq, matchIdx string) {
-	startTime, err := time.Parse(time.RFC3339, req.StartTime)
-	if err != nil {
-		log.Fatalf("Failed to parse start time: %v", err)
-		return
-	}
+	if req.StartTime != "" {
+		startTime, err := time.Parse(time.RFC3339, req.StartTime)
+		if err != nil {
+			log.Fatalf("Failed to parse start time: %v", err)
+			return
+		}
 
-	time.Sleep(time.Until(startTime))
+		time.Sleep(time.Until(startTime))
+	}
 
 	for {
 		time.Sleep(2 * time.Second)
@@ -181,7 +183,7 @@ func runningThread(handler *handlers.Handler, req requests.CreateMatchReq, match
 			log.Fatalf("Failed to get lobby: %v", err)
 		}
 
-		if lobby.MatchId != nil {
+		if lobby.MatchId == nil {
 			continue
 		}
 

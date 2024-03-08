@@ -5,8 +5,8 @@ type InviteLobbyReq struct {
 }
 
 type CreateMatchReq struct {
-	TeamA       []uint64    `json:"goodGuys"`
-	TeamB       []uint64    `json:"badGuys"`
+	TeamA       []uint64    `json:"teamA"`
+	TeamB       []uint64    `json:"teamB"`
 	LobbyConfig LobbyConfig `json:"lobbyConfig"`
 	StartTime   string      `json:"startTime"`
 }
