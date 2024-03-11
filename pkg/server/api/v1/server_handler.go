@@ -12,8 +12,8 @@ func RegisterServer(router *gin.Engine, ctx context.Context) {
 	v1 := router.Group("/v1")
 	{
 		v1.POST("/ScheduleMatch", scheduleMatch)
-		v1.GET("/GetMatchDetails/:matchIdx", getMatchDetails)
-		v1.GET("/lobby", getLobby)
+		v1.GET("/MatchDetails/:matchIdx", getMatchDetails)
+		v1.GET("/Lobby/:matchIdx", getLobby)
 	}
 }
 
@@ -24,7 +24,11 @@ func scheduleMatch(c *gin.Context) {
 		return
 	}
 
-	matchIdx := wires.Instance.MatchService.ScheduleMatch(c, req)
+	matchIdx, err := wires.Instance.MatchService.ScheduleMatch(c, req)
+	if err != nil {
+		c.JSON(400, gin.H{"msg": err.Error()})
+		return
+	}
 	c.JSON(200, gin.H{"matchIdx": matchIdx})
 }
 
@@ -40,7 +44,8 @@ func getMatchDetails(c *gin.Context) {
 }
 
 func getLobby(c *gin.Context) {
-	lobby, err := wires.Instance.MatchService.GetLobby(c)
+	matchIdx := c.Param("matchIdx")
+	lobby, err := wires.Instance.MatchService.GetLobby(c, matchIdx)
 	if err != nil {
 		c.JSON(400, gin.H{"msg": err.Error()})
 		return

@@ -8,18 +8,13 @@ import (
 )
 
 type Config struct {
-	Steam  SteamConfig
-	Redis  RedisConfig
-	Server ServerConfig
+	Redis         RedisConfig
+	Server        ServerConfig
+	InventoryPath string
 }
 
 type ServerConfig struct {
 	Port string
-}
-
-type SteamConfig struct {
-	Username string
-	Password string
 }
 
 type RedisConfig struct {
@@ -36,10 +31,6 @@ func NewConfig() *Config {
 	}
 
 	return &Config{
-		Steam: SteamConfig{
-			Username: readEnvVar("STEAM_USERNAME"),
-			Password: readEnvVar("STEAM_PASSWORD"),
-		},
 		Redis: RedisConfig{
 			Host:     readEnvVar("REDIS_HOST"),
 			Port:     readEnvVar("REDIS_PORT"),
@@ -49,6 +40,7 @@ func NewConfig() *Config {
 		Server: ServerConfig{
 			Port: readEnvVar("SERVER_PORT"),
 		},
+		InventoryPath: readEnvVar("INVENTORY_PATH"),
 	}
 }
 

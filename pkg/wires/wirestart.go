@@ -9,10 +9,15 @@ type Wires struct {
 	MatchService services.MatchService
 }
 
-func Init() *Wires {
-	return &Wires{
-		MatchService: services.NewMatchService(&handlers.Handler{}),
+var Instance *Wires
+
+func Init(inventoryPath string) {
+	handlers, err := handlers.LoadHandlers(inventoryPath)
+	if err != nil {
+		panic(err)
+	}
+
+	Instance = &Wires{
+		MatchService: services.NewMatchService(handlers),
 	}
 }
-
-var Instance = Init()

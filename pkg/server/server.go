@@ -23,24 +23,22 @@ func NewServer(config *config.Config) *Server {
 
 func (s *Server) Start() {
 
-	go func() {
-		r := gin.Default()
-		r.Use(gin.Logger())
-		r.Use(gin.Recovery())
-		r.Use(CORSMiddleware())
+	r := gin.Default()
+	r.Use(gin.Logger())
+	r.Use(gin.Recovery())
+	r.Use(CORSMiddleware())
 
-		api.RegisterVersion(r, context.Background())
-		redis.Init(s.config, context.Background())
+	wires.Init(s.config.InventoryPath)
+	redis.Init(s.config, context.Background())
+	api.RegisterVersion(r, context.Background())
 
-		err := r.Run(":" + s.config.Server.Port)
-		if err != nil {
-			log.Fatal("Could not start the server" + err.Error())
-			return
-		}
+	err := r.Run(":" + s.config.Server.Port)
+	if err != nil {
+		log.Fatal("Could not start the server" + err.Error())
+		return
+	}
 
-		log.Println("Server started on port " + s.config.Server.Port)
-	}()
-	wires.Instance.MatchService.InitSteamConnection(s.config)
+	log.Println("Server started on port " + s.config.Server.Port)
 }
 
 func CORSMiddleware() gin.HandlerFunc {
