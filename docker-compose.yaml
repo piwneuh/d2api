@@ -7,3 +7,15 @@ services:
     environment:
       - REDIS_PASSWORD=redis
     restart: always
+
+  d2-api:
+    build: .
+    image: relative-fi/d2-api
+    container_name: d2-api
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
