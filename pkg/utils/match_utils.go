@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	h "d2api/pkg/handlers"
+	m "d2api/pkg/models"
 	"d2api/pkg/redis"
 	"d2api/pkg/requests"
 	"encoding/json"
@@ -13,11 +14,6 @@ import (
 	"github.com/paralin/go-dota2/cso"
 	"github.com/paralin/go-dota2/protocol"
 )
-
-type MatchDetails struct {
-	MatchId   uint64
-	HandlerId uint16
-}
 
 func GetGoodAndBadGuys(lobby *protocol.CSODOTALobby) ([]uint64, []uint64, error) {
 	goodGuys := make([]uint64, 0)
@@ -67,13 +63,31 @@ func AreAllPlayerHere(goodGuys []uint64, badGuys []uint64, req *requests.CreateM
 	return true
 }
 
-func GetMatchRedis(matchIdx string) (*MatchDetails, error) {
+func GetMissingPlayers(goodGuys []uint64, badGuys []uint64, req *requests.CreateMatchReq) []uint64 {
+	missingPlayers := make([]uint64, 0)
+
+	for _, id := range req.TeamA {
+		if !slices.Contains(goodGuys, id) {
+			missingPlayers = append(missingPlayers, id)
+		}
+	}
+
+	for _, id := range req.TeamB {
+		if !slices.Contains(badGuys, id) {
+			missingPlayers = append(missingPlayers, id)
+		}
+	}
+
+	return missingPlayers
+}
+
+func GetMatchRedis(matchIdx string) (*m.MatchDetails, error) {
 	marshalled, err := redis.RedisClient.Get(context.Background(), matchIdx).Result()
 	if err != nil {
 		return nil, err
 	}
 
-	var match MatchDetails
+	var match m.MatchDetails
 	err = json.Unmarshal([]byte(marshalled), &match)
 	if err != nil {
 		return nil, errors.New("match not found")
@@ -82,7 +96,7 @@ func GetMatchRedis(matchIdx string) (*MatchDetails, error) {
 	return &match, nil
 }
 
-func SetMatchRedis(matchIdx string, match MatchDetails) error {
+func SetMatchRedis(matchIdx string, match m.MatchDetails) error {
 	marshalled, err := json.Marshal(match)
 	if err != nil {
 		return err

@@ -1,6 +1,7 @@
 package wires
 
 import (
+	"d2api/config"
 	"d2api/pkg/handlers"
 	"d2api/pkg/services"
 )
@@ -11,13 +12,13 @@ type Wires struct {
 
 var Instance *Wires
 
-func Init(inventoryPath string) {
-	handlers, err := handlers.LoadHandlers(inventoryPath)
+func Init(config *config.Config) {
+	handlers, err := handlers.LoadHandlers(config.InventoryPath)
 	if err != nil {
 		panic(err)
 	}
 
 	Instance = &Wires{
-		MatchService: services.NewMatchService(handlers),
+		MatchService: services.NewMatchService(handlers, config),
 	}
 }

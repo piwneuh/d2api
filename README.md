@@ -17,6 +17,7 @@ REDIS_PORT=
 REDIS_DB=
 SERVER_PORT=
 INVENTORY_PATH=
+TIME_TO_CANCEL= //Time to cancel in seconds
 ```
 
 ## inventory.json format

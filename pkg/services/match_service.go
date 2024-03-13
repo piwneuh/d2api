@@ -7,7 +7,9 @@ import (
 	"strconv"
 	"time"
 
+	"d2api/config"
 	"d2api/pkg/handlers"
+	"d2api/pkg/models"
 	"d2api/pkg/requests"
 	"d2api/pkg/utils"
 
@@ -19,11 +21,13 @@ import (
 
 type MatchService struct {
 	Handlers []*handlers.Handler
+	Config   *config.Config
 }
 
-func NewMatchService(handlers []*handlers.Handler) MatchService {
+func NewMatchService(handlers []*handlers.Handler, config *config.Config) MatchService {
 	return MatchService{
 		Handlers: handlers,
+		Config:   config,
 	}
 }
 
@@ -62,16 +66,17 @@ func (s *MatchService) ScheduleMatch(c *gin.Context, req requests.CreateMatchReq
 	}
 
 	matchIdx := strconv.FormatInt(time.Now().UnixNano(), 10)
-	utils.SetMatchRedis(matchIdx, utils.MatchDetails{
+	utils.SetMatchRedis(matchIdx, models.MatchDetails{
 		MatchId:   0,
 		HandlerId: uint16(handlerId),
+		Status:    "scheduled",
 	})
 
-	go runningThread(handler, req, matchIdx)
+	go runningThread(handler, req, matchIdx, s.Config.TimeToCancel)
 	return matchIdx, nil
 }
 
-func runningThread(handler *handlers.Handler, req requests.CreateMatchReq, matchIdx string) {
+func runningThread(handler *handlers.Handler, req requests.CreateMatchReq, matchIdx string, timeToCancel uint32) {
 	if req.StartTime != "" {
 		startTime, err := time.Parse(time.RFC3339, req.StartTime)
 		if err != nil {
@@ -81,6 +86,9 @@ func runningThread(handler *handlers.Handler, req requests.CreateMatchReq, match
 
 		time.Sleep(time.Until(startTime))
 	}
+
+	lobbyCreationTime := time.Now()
+	lobbyExpirationTime := lobbyCreationTime.Add(time.Duration(timeToCancel) * time.Second)
 
 	for {
 		time.Sleep(2 * time.Second)
@@ -96,6 +104,31 @@ func runningThread(handler *handlers.Handler, req requests.CreateMatchReq, match
 
 		if utils.AreAllPlayerHere(goodGuys, badGuys, &req) {
 			break
+		}
+
+		if time.Now().After(lobbyExpirationTime) {
+			match, err := utils.GetMatchRedis(matchIdx)
+			if err != nil {
+				log.Fatalf("Failed to get match: %v", err)
+			}
+
+			missingPlayers := utils.GetMissingPlayers(goodGuys, badGuys, &req)
+
+			match.Status = "cancelled"
+			match.CancelReason = "reason: players didn't join in time. players: "
+			for _, id := range missingPlayers {
+				match.CancelReason += strconv.FormatUint(id, 10) + ", "
+			}
+			match.CancelReason = match.CancelReason[:len(match.CancelReason)-2]
+
+			err = utils.SetMatchRedis(matchIdx, *match)
+			if err != nil {
+				log.Fatalf("Failed to set match: %v", err)
+			}
+
+			handler.DotaClient.DestroyLobby(context.Background())
+			handler.Occupied = false
+			return
 		}
 	}
 
@@ -118,6 +151,7 @@ func runningThread(handler *handlers.Handler, req requests.CreateMatchReq, match
 		}
 
 		match.MatchId = *lobby.MatchId
+		match.Status = "started"
 		err = utils.SetMatchRedis(matchIdx, *match)
 		if err != nil {
 			log.Fatalf("Failed to set match: %v", err)
@@ -137,8 +171,8 @@ func (s *MatchService) GetLobby(c *gin.Context, matchIdx string) (*protocol.CSOD
 		return nil, err
 	}
 
-	if match.MatchId != 0 {
-		return nil, errors.New("match has already started")
+	if match.Status != "scheduled" {
+		return nil, errors.New(match.Status + ". " + match.CancelReason)
 	}
 
 	lobby, err := utils.GetCurrentLobby(s.Handlers[match.HandlerId])
@@ -155,13 +189,21 @@ func (s *MatchService) GetMatchDetails(c *gin.Context, matchIdx string) (*protoc
 		return nil, err
 	}
 
-	if match.MatchId == 0 {
-		return nil, errors.New("match hasn't started yet")
+	if match.Status != "started" {
+		return nil, errors.New(match.Status + ". " + match.CancelReason)
 	}
 
 	details, err := s.Handlers[match.HandlerId].DotaClient.RequestMatchDetails(c, match.MatchId)
 	if err != nil {
 		return nil, err
+	}
+
+	if *details.Result == 2 {
+		match.Status = "finished"
+		err = utils.SetMatchRedis(matchIdx, *match)
+		if err != nil {
+			log.Fatalf("Failed to set match: %v", err)
+		}
 	}
 
 	return details, nil

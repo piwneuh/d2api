@@ -28,7 +28,7 @@ func (s *Server) Start() {
 	r.Use(gin.Recovery())
 	r.Use(CORSMiddleware())
 
-	wires.Init(s.config.InventoryPath)
+	wires.Init(s.config)
 	redis.Init(s.config, context.Background())
 	api.RegisterVersion(r, context.Background())
 
