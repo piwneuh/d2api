@@ -189,7 +189,7 @@ func (s *MatchService) GetMatchDetails(c *gin.Context, matchIdx string) (*protoc
 		return nil, err
 	}
 
-	if match.Status != "started" {
+	if match.Status != "started" && match.Status != "finished" {
 		return nil, errors.New(match.Status + ". " + match.CancelReason)
 	}
 

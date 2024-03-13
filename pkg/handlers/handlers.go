@@ -109,7 +109,6 @@ func (h *Handler) InitSteamConnection() {
 func GetFreeHandler(handlers []*Handler) (*Handler, uint16, error) {
 	for i, handler := range handlers {
 		if !handler.Occupied {
-			log.Printf("Handler %v is available", i)
 			handler.Occupied = true
 			go func() {
 				handler.InitSteamConnection()
