@@ -15,4 +15,5 @@ type LobbyConfig struct {
 	GameName     string `json:"gameName"`
 	PassKey      string `json:"passKey"`
 	ServerRegion uint32 `json:"serverRegion"`
+	GameMode     string `json:"gameMode"`
 }

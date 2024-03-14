@@ -10,6 +10,7 @@ import (
 	"errors"
 	"log"
 	"slices"
+	"strings"
 
 	"github.com/paralin/go-dota2/cso"
 	"github.com/paralin/go-dota2/protocol"
@@ -30,6 +31,16 @@ func GetGoodAndBadGuys(lobby *protocol.CSODOTALobby) ([]uint64, []uint64, error)
 	}
 
 	return goodGuys, badGuys, nil
+}
+
+func GetGameModeFromString(gameMode string) uint32 {
+	fullString := "DOTA_GAMEMODE_" + strings.ToUpper(gameMode)
+	gameModeInt, ok := protocol.DOTA_GameMode_value[fullString]
+	if !ok {
+		return uint32(protocol.DOTA_GameMode_value["DOTA_GAMEMODE_AP"])
+	}
+
+	return uint32(gameModeInt)
 }
 
 func GetCurrentLobby(handler *h.Handler) (*protocol.CSODOTALobby, error) {

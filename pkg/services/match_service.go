@@ -48,6 +48,7 @@ func (s *MatchService) ScheduleMatch(c *gin.Context, req requests.CreateMatchReq
 		Visibility:   &lobbyVisibility,
 		PassKey:      proto.String(req.LobbyConfig.PassKey),
 		ServerRegion: proto.Uint32(req.LobbyConfig.ServerRegion),
+		GameMode:     proto.Uint32(utils.GetGameModeFromString(req.LobbyConfig.GameMode)),
 	}
 
 	handler.DotaClient.CreateLobby(lobbyDetails)
