@@ -68,9 +68,8 @@ func (s *MatchService) ScheduleMatch(c *gin.Context, req requests.CreateMatchReq
 
 	matchIdx := strconv.FormatInt(time.Now().UnixNano(), 10)
 	utils.SetMatchRedis(matchIdx, models.MatchDetails{
-		MatchId:   0,
-		HandlerId: uint16(handlerId),
-		Status:    "scheduled",
+		MatchStatus: models.MatchStatus{Status: "scheduled", MatchId: 0},
+		HandlerId:   handlerId,
 	})
 
 	go runningThread(handler, req, matchIdx, s.Config.TimeToCancel)
@@ -166,46 +165,41 @@ func runningThread(handler *handlers.Handler, req requests.CreateMatchReq, match
 	handler.Occupied = false
 }
 
-func (s *MatchService) GetLobby(c *gin.Context, matchIdx string) (*protocol.CSODOTALobby, error) {
+func (s *MatchService) GetMatch(c *gin.Context, matchIdx string) (interface{}, error) {
 	match, err := utils.GetMatchRedis(matchIdx)
 	if err != nil {
 		return nil, err
 	}
 
-	if match.Status != "scheduled" {
-		return nil, errors.New(match.Status + ". " + match.CancelReason)
+	handler := s.Handlers[match.HandlerId]
+
+	if match.Status == "cancelled" {
+		return models.MatchCancel{MatchStatus: match.MatchStatus}, nil
+	} else if match.Status == "scheduled" {
+		lobby, err := utils.GetCurrentLobby(handler)
+		if err != nil {
+			log.Fatalf("Failed to get lobby: %v", err)
+			return nil, err
+		}
+		return models.MatchLobby{MatchStatus: match.MatchStatus, Lobby: lobby}, nil
 	}
 
-	lobby, err := utils.GetCurrentLobby(s.Handlers[match.HandlerId])
-	if err != nil {
-		log.Fatalf("Failed to get lobby: %v", err)
-		return nil, err
-	}
-	return lobby, nil
-}
-
-func (s *MatchService) GetMatchDetails(c *gin.Context, matchIdx string) (*protocol.CMsgGCMatchDetailsResponse, error) {
-	match, err := utils.GetMatchRedis(matchIdx)
-	if err != nil {
-		return nil, err
-	}
-
-	if match.Status != "started" && match.Status != "finished" {
-		return nil, errors.New(match.Status + ". " + match.CancelReason)
-	}
-
-	details, err := s.Handlers[match.HandlerId].DotaClient.RequestMatchDetails(c, match.MatchId)
+	details, err := handler.DotaClient.RequestMatchDetails(c, match.MatchId)
 	if err != nil {
 		return nil, err
 	}
 
-	if *details.Result == 2 {
-		match.Status = "finished"
+	if *details.Result == 1 {
+		match.MatchStatus.Status = "finished"
 		err = utils.SetMatchRedis(matchIdx, *match)
 		if err != nil {
 			log.Fatalf("Failed to set match: %v", err)
 		}
-	}
 
-	return details, nil
+		return models.MatchData{MatchStatus: match.MatchStatus, Match: details.Match}, nil
+	} else if *details.Result == 2 {
+		return match.MatchStatus, nil
+	} else {
+		return nil, errors.New("match not found")
+	}
 }

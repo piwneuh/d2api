@@ -11,13 +11,12 @@ import (
 func RegisterServer(router *gin.Engine, ctx context.Context) {
 	v1 := router.Group("/v1")
 	{
-		v1.POST("/ScheduleMatch", scheduleMatch)
-		v1.GET("/MatchDetails/:matchIdx", getMatchDetails)
-		v1.GET("/Lobby/:matchIdx", getLobby)
+		v1.POST("/match", postMatch)
+		v1.GET("/match/:matchIdx", getMatch)
 	}
 }
 
-func scheduleMatch(c *gin.Context) {
+func postMatch(c *gin.Context) {
 	var req requests.CreateMatchReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
@@ -26,30 +25,19 @@ func scheduleMatch(c *gin.Context) {
 
 	matchIdx, err := wires.Instance.MatchService.ScheduleMatch(c, req)
 	if err != nil {
-		c.JSON(400, gin.H{"msg": err.Error()})
+		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(200, gin.H{"matchIdx": matchIdx})
 }
 
-func getMatchDetails(c *gin.Context) {
+func getMatch(c *gin.Context) {
 	matchIdx := c.Param("matchIdx")
-	details, err := wires.Instance.MatchService.GetMatchDetails(c, matchIdx)
+	match, err := wires.Instance.MatchService.GetMatch(c, matchIdx)
 	if err != nil {
-		c.JSON(400, gin.H{"msg": err.Error()})
+		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(200, gin.H{"details": details})
-}
-
-func getLobby(c *gin.Context) {
-	matchIdx := c.Param("matchIdx")
-	lobby, err := wires.Instance.MatchService.GetLobby(c, matchIdx)
-	if err != nil {
-		c.JSON(400, gin.H{"msg": err.Error()})
-		return
-	}
-
-	c.JSON(200, gin.H{"lobby": lobby})
+	c.JSON(200, match)
 }
