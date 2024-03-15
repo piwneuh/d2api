@@ -1,14 +1,18 @@
 # d2api
 
-Test for go-dota2 ad go-steam
+Api for scheduling and managing Dota 2 matches.
 
-1. need to have **inventory.json** in main `d2api` folder with credentials, as well as **.env** file
+## Requirements
 
-2. need to have **REDIS** (docker compose or your machine) running
+1. need to have **.env** file in main `d2api` with below format 
+2. need to have **inventory.json** in main `d2api` folder with credentials, 2FA should be disabled for all accounts, one account should be enough for testing
+3. need to have **REDIS** instance, either local or remote
+5. go **1.21** or higher
 
-3. run `go run main.go`
+Optional:
+1. **Docker** and **docker-compose** for running redis and server in containers
 
-## .ENV format
+### .ENV format
 
 ```
 REDIS_PASSWORD=
@@ -20,7 +24,7 @@ INVENTORY_PATH=
 TIME_TO_CANCEL= //Time to cancel in seconds
 ```
 
-## inventory.json format
+### inventory.json format
 
 ```
 [
@@ -31,7 +35,72 @@ TIME_TO_CANCEL= //Time to cancel in seconds
 ]
 ```
 
-# Game Mode List (send as game mode string in *ScheduleMatch*)
+## Start the server
+
+### For development
+
+```bash
+# Start redis inside docker container
+$ docker compose up redis -d
+
+# Run the server
+$ go run /cmd/main.go
+```
+
+### For production
+
+```bash
+# Start both server and redis inside docker container
+$ docker compose up -d
+```
+
+## Endpoint docuemntation
+
+ ### 1. POST /match
+This endpoint schedules a match.
+
+```json
+{
+  "teamA": [],
+  "teamB": [],
+  "lobbyConfig": {
+    "gameName": "",
+    "passKey": "",
+    "serverRegion": 0,
+    "gameMode": ""
+  },
+  "startTime": "" 
+}
+```
+
+* **teamA**: Array of Steam IDs for Team A.
+* **teamB**: Array of Steam IDs for Team B.
+* **lobbyConfig**: 
+  * **gameName**: Lobby name, send as string.
+  * **passKey**: Password for the lobby, send as string, this is required so lobby is shown as public.
+  * **serverRegion**: Server region of the match, send as number.
+  * **gameMode**: Game mode of the match, send as string, see **Game Mode List** below.
+* **startTime**: Start time of the match, format: `"2021-07-01T12:00:00Z"`, if not provided, match will be scheduled immediately.
+
+returns `200` if match is scheduled successfully, `400` if match is not scheduled.
+```json
+{
+  "matchIdx": 0
+}
+```
+
+### 2. GET /match/:matchIdx
+
+This endpoint returns the match details for the given match index `matchIdx`.
+Keep in mind that match index is returned when a match is scheduled.
+If match is not begun it will return lobby details, and match details can be fetched only when the match is finished.
+
+**It will either return lobby details or match details based on the match status.**
+
+returns `200` if match is found, `404` if match is not found.
+
+
+### Game Mode List (send as game mode string in *ScheduleMatch*)
 - **AP**: All Pick               
 - **CM**: Captain Mode       
 - **RD**: Random Draft  
