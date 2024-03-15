@@ -54,7 +54,7 @@ $ go run /cmd/main.go
 $ docker compose up -d
 ```
 
-## Endpoint docuemntation
+## Endpoint documentation
 
  ### 1. POST /match
 This endpoint schedules a match.
