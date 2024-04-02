@@ -23,7 +23,7 @@ func postMatch(c *gin.Context) {
 		return
 	}
 
-	matchIdx, err := wires.Instance.MatchService.ScheduleMatch(c, req)
+	matchIdx, err := wires.Instance.MatchService.ScheduleMatch(req)
 	if err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
@@ -33,7 +33,7 @@ func postMatch(c *gin.Context) {
 
 func getMatch(c *gin.Context) {
 	matchIdx := c.Param("matchIdx")
-	match, err := wires.Instance.MatchService.GetMatch(c, matchIdx)
+	match, err := wires.Instance.MatchService.GetMatch(matchIdx)
 	if err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return

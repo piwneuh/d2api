@@ -120,3 +120,13 @@ func SetMatchRedis(matchIdx string, match m.MatchDetails) error {
 
 	return nil
 }
+
+func GetAllMatchIdxs() ([]string, error) {
+	keys, err := redis.RedisClient.Keys(context.Background(), "*").Result()
+	if err != nil {
+		log.Fatalf("Failed to get keys: %v", err)
+		return nil, err
+	}
+
+	return keys, nil
+}
