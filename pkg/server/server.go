@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"d2api/config"
+	"d2api/pkg/crawler"
 	"d2api/pkg/redis"
 	"d2api/pkg/server/api"
 	"d2api/pkg/wires"
@@ -30,6 +31,7 @@ func (s *Server) Start() {
 
 	wires.Init(s.config)
 	redis.Init(s.config, context.Background())
+	crawler.Init(s.config)
 	api.RegisterVersion(r, context.Background())
 
 	err := r.Run(":" + s.config.Server.Port)

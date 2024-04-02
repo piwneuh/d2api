@@ -12,6 +12,7 @@ type Config struct {
 	Server        ServerConfig
 	InventoryPath string
 	TimeToCancel  uint32
+	Interval      uint32
 }
 
 type ServerConfig struct {
@@ -36,6 +37,8 @@ func NewConfig() *Config {
 		timeToCancel = 300
 	}
 
+	interval, err := strconv.ParseUint(readEnvVar("CRAWLER_INTERVAL"), 10, 32)
+
 	return &Config{
 		Redis: RedisConfig{
 			Host:     readEnvVar("REDIS_HOST"),
@@ -48,6 +51,7 @@ func NewConfig() *Config {
 		},
 		InventoryPath: readEnvVar("INVENTORY_PATH"),
 		TimeToCancel:  uint32(timeToCancel),
+		Interval:      uint32(interval),
 	}
 }
 

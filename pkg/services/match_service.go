@@ -11,9 +11,9 @@ import (
 	"d2api/pkg/handlers"
 	"d2api/pkg/models"
 	"d2api/pkg/requests"
+	"d2api/pkg/scheduled_matches"
 	"d2api/pkg/utils"
 
-	"github.com/gin-gonic/gin"
 	"github.com/golang/protobuf/proto"
 	"github.com/paralin/go-dota2/protocol"
 	steamId "github.com/paralin/go-steam/steamid"
@@ -31,7 +31,7 @@ func NewMatchService(handlers []*handlers.Handler, config *config.Config) MatchS
 	}
 }
 
-func (s *MatchService) ScheduleMatch(c *gin.Context, req requests.CreateMatchReq) (string, error) {
+func (s *MatchService) ScheduleMatch(req requests.CreateMatchReq) (string, error) {
 	handler, handlerId, err := handlers.GetFreeHandler(s.Handlers)
 	if err != nil {
 		return "", err
@@ -72,6 +72,7 @@ func (s *MatchService) ScheduleMatch(c *gin.Context, req requests.CreateMatchReq
 		HandlerId:   handlerId,
 	})
 
+	scheduled_matches.Add(matchIdx)
 	go runningThread(handler, req, matchIdx, s.Config.TimeToCancel)
 	return matchIdx, nil
 }
@@ -165,13 +166,16 @@ func runningThread(handler *handlers.Handler, req requests.CreateMatchReq, match
 	handler.Occupied = false
 }
 
-func (s *MatchService) GetMatch(c *gin.Context, matchIdx string) (interface{}, error) {
+func (s *MatchService) GetMatch(matchIdx string) (interface{}, error) {
 	match, err := utils.GetMatchRedis(matchIdx)
 	if err != nil {
 		return nil, err
 	}
 
 	handler := s.Handlers[match.HandlerId]
+	if handler.SteamClient == nil || handler.DotaClient == nil {
+		handler.InitSteamConnection()
+	}
 
 	if match.Status == "cancelled" {
 		return models.MatchCancel{MatchStatus: match.MatchStatus}, nil
@@ -184,7 +188,7 @@ func (s *MatchService) GetMatch(c *gin.Context, matchIdx string) (interface{}, e
 		return models.MatchLobby{MatchStatus: match.MatchStatus, Lobby: lobby}, nil
 	}
 
-	details, err := handler.DotaClient.RequestMatchDetails(c, match.MatchId)
+	details, err := handler.DotaClient.RequestMatchDetails(context.Background(), match.MatchId)
 	if err != nil {
 		return nil, err
 	}
