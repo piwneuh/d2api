@@ -172,9 +172,9 @@ func (s *MatchService) GetMatch(matchIdx string) (interface{}, error) {
 		return nil, err
 	}
 
-	handler := s.Handlers[match.HandlerId]
-	if handler.SteamClient == nil || handler.DotaClient == nil {
-		handler.InitSteamConnection()
+	handler, _, err := handlers.GetFirstHandler(s.Handlers)
+	if err != nil {
+		return nil, err
 	}
 
 	if match.Status == "cancelled" {
@@ -206,4 +206,23 @@ func (s *MatchService) GetMatch(matchIdx string) (interface{}, error) {
 	} else {
 		return nil, errors.New("match not found")
 	}
+}
+
+func (s *MatchService) GetPlayerHistory(steamId uint32) (interface{}, error) {
+	handler, _, err := handlers.GetFirstHandler(s.Handlers)
+	if err != nil {
+		return nil, err
+	}
+
+	playerReq := protocol.CMsgDOTAGetPlayerMatchHistory{
+		AccountId:      proto.Uint32(steamId),
+		StartAtMatchId: proto.Uint64(7668132450),
+	}
+
+	history, err := handler.DotaClient.GetPlayerMatchHistory(context.Background(), &playerReq)
+	if err != nil {
+		return nil, err
+	}
+
+	return history, nil
 }

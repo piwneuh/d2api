@@ -4,6 +4,7 @@ import (
 	"context"
 	"d2api/pkg/requests"
 	"d2api/pkg/wires"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -13,6 +14,7 @@ func RegisterServer(router *gin.Engine, ctx context.Context) {
 	{
 		v1.POST("/match", postMatch)
 		v1.GET("/match/:matchIdx", getMatch)
+		v1.GET("/player/:steamId/history", getPlayerHistory)
 	}
 }
 
@@ -40,4 +42,20 @@ func getMatch(c *gin.Context) {
 	}
 
 	c.JSON(200, match)
+}
+
+func getPlayerHistory(c *gin.Context) {
+	steamId := c.Param("steamId")
+	steamIdUint, err := strconv.ParseUint(steamId, 10, 32)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "need to send a valid steamId"})
+	}
+
+	history, err := wires.Instance.MatchService.GetPlayerHistory(uint32(steamIdUint))
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, history)
 }
