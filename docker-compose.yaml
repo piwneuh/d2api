@@ -19,3 +19,9 @@ services:
       - "8080:8080"
     depends_on:
       - redis
+    command: go run ./cmd/main.go
+    develop:
+      watch:
+        - action: sync+restart
+          path: .
+          target: /app
