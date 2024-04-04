@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"d2api/pkg/utils"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/jasonodonnell/go-opendota"
 	"github.com/paralin/go-dota2/protocol"
 	steamId "github.com/paralin/go-steam/steamid"
 )
@@ -208,21 +210,12 @@ func (s *MatchService) GetMatch(matchIdx string) (interface{}, error) {
 	}
 }
 
-func (s *MatchService) GetPlayerHistory(steamId uint32) (interface{}, error) {
-	handler, _, err := handlers.GetFirstHandler(s.Handlers)
+func (s *MatchService) GetPlayerHistory(steamId int64, limit int) (interface{}, error) {
+	client := opendota.NewClient(http.DefaultClient)
+	matches, _, err := client.PlayerService.Matches(steamId, &opendota.PlayerParam{Limit: limit})
 	if err != nil {
 		return nil, err
 	}
 
-	playerReq := protocol.CMsgDOTAGetPlayerMatchHistory{
-		AccountId:      proto.Uint32(steamId),
-		StartAtMatchId: proto.Uint64(7668132450),
-	}
-
-	history, err := handler.DotaClient.GetPlayerMatchHistory(context.Background(), &playerReq)
-	if err != nil {
-		return nil, err
-	}
-
-	return history, nil
+	return matches, nil
 }

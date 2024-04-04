@@ -14,7 +14,7 @@ func RegisterServer(router *gin.Engine, ctx context.Context) {
 	{
 		v1.POST("/match", postMatch)
 		v1.GET("/match/:matchIdx", getMatch)
-		v1.GET("/player/:steamId/history", getPlayerHistory)
+		v1.GET("/player/:steamId/matches", getPlayerHistory)
 	}
 }
 
@@ -46,12 +46,22 @@ func getMatch(c *gin.Context) {
 
 func getPlayerHistory(c *gin.Context) {
 	steamId := c.Param("steamId")
-	steamIdUint, err := strconv.ParseUint(steamId, 10, 32)
+	limit := c.Query("limit")
+	limitInt := 10
+	if limit != "" {
+		var err error
+		limitInt, err = strconv.Atoi(limit)
+		if err != nil {
+			c.JSON(400, gin.H{"error": "need to send a valid limit"})
+		}
+	}
+
+	steamIdUint, err := strconv.ParseInt(steamId, 10, 64)
 	if err != nil {
 		c.JSON(400, gin.H{"error": "need to send a valid steamId"})
 	}
 
-	history, err := wires.Instance.MatchService.GetPlayerHistory(uint32(steamIdUint))
+	history, err := wires.Instance.MatchService.GetPlayerHistory(steamIdUint, limitInt)
 	if err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
