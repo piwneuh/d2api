@@ -19,9 +19,15 @@ services:
       - "8080:8080"
     depends_on:
       - redis
+    networks:
+      - docker_mmf_network
     command: go run ./cmd/main.go
     develop:
       watch:
         - action: sync+restart
           path: .
           target: /app
+
+networks:
+  docker_mmf_network:
+    external: true
