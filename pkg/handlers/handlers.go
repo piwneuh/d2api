@@ -120,3 +120,18 @@ func GetFreeHandler(handlers []*Handler) (*Handler, uint16, error) {
 
 	return nil, 0, errors.New("no available bot")
 }
+
+func GetFirstHandler(handlers []*Handler) (*Handler, uint16, error) {
+	if len(handlers) == 0 {
+		return nil, 0, errors.New("no available bot")
+	}
+
+	handler := handlers[0]
+	if handler.SteamClient == nil || handler.DotaClient == nil {
+		go func() {
+			handler.InitSteamConnection()
+		}()
+	}
+	time.Sleep(3 * time.Second)
+	return handler, 0, nil
+}

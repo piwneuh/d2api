@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"d2api/pkg/utils"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/jasonodonnell/go-opendota"
 	"github.com/paralin/go-dota2/protocol"
 	steamId "github.com/paralin/go-steam/steamid"
 )
@@ -172,9 +174,9 @@ func (s *MatchService) GetMatch(matchIdx string) (interface{}, error) {
 		return nil, err
 	}
 
-	handler := s.Handlers[match.HandlerId]
-	if handler.SteamClient == nil || handler.DotaClient == nil {
-		handler.InitSteamConnection()
+	handler, _, err := handlers.GetFirstHandler(s.Handlers)
+	if err != nil {
+		return nil, err
 	}
 
 	if match.Status == "cancelled" {
@@ -206,4 +208,14 @@ func (s *MatchService) GetMatch(matchIdx string) (interface{}, error) {
 	} else {
 		return nil, errors.New("match not found")
 	}
+}
+
+func (s *MatchService) GetPlayerHistory(steamId int64, limit int) (interface{}, error) {
+	client := opendota.NewClient(http.DefaultClient)
+	matches, _, err := client.PlayerService.Matches(steamId, &opendota.PlayerParam{Limit: limit})
+	if err != nil {
+		return nil, err
+	}
+
+	return matches, nil
 }
