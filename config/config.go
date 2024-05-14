@@ -14,6 +14,10 @@ type Config struct {
 	InventoryPath string
 	TimeToCancel  uint32
 	Interval      uint32
+	Tournament    TournamentConfig
+}
+type TournamentConfig struct {
+	URL string
 }
 
 type ServerConfig struct {
@@ -60,11 +64,14 @@ func NewConfig() *Config {
 		},
 		Mongo: MongoConfig{
 			URL:      readEnvVar("MONGO_URL"),
-			Database: readEnvVar("MONGO_DB"),
+			Database: readEnvVar("MONGO_DATABASE"),
 		},
 		InventoryPath: readEnvVar("INVENTORY_PATH"),
 		TimeToCancel:  uint32(timeToCancel),
 		Interval:      uint32(interval),
+		Tournament: TournamentConfig{
+			URL: readEnvVar("TOURNAMENT_URL"),
+		},
 	}
 }
 

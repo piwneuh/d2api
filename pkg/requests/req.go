@@ -39,7 +39,7 @@ type TeamForMiddleware struct {
 }
 
 type PlayerForMiddleware struct {
-	Team          int    `json:"team"`
+	Team          string `json:"team"`
 	SteamId       string `json:"steam_id_64"`
 	WalletAddress string `json:"walletAddress"`
 }

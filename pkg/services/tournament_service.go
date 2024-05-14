@@ -86,7 +86,7 @@ func createTournamentMatch(match *requests.MatchForMiddleware) (*requests.Create
 			return nil, errors.New("wrong steam id for player " + player.SteamId)
 		}
 
-		if player.Team == match.Team1Id {
+		if player.Team == match.Team1.Name {
 			req.TeamA = append(req.TeamA, id)
 		} else {
 			req.TeamB = append(req.TeamB, id)

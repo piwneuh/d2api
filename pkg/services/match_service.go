@@ -17,6 +17,7 @@ import (
 	"d2api/pkg/utils"
 
 	"github.com/jasonodonnell/go-opendota"
+	"github.com/paralin/go-dota2/protocol"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -89,8 +90,17 @@ func (s *MatchService) GetMatch(matchIdx string) (interface{}, error) {
 	}
 }
 
-func (s *MatchService) GetPlayerHistory(steamId int64, limit int) (interface{}, error) {
+func (s *MatchService) GetPlayerHistoryOpenDota(steamId int64, limit int) (interface{}, error) {
 	client := opendota.NewClient(http.DefaultClient)
+	matches, _, err := client.PlayerService.Matches(steamId, &opendota.PlayerParam{Limit: limit})
+	if err != nil {
+		return nil, err
+	}
+
+	return matches, nil
+}
+
+func (s *MatchService) GetPlayerHistory(steamId int64, limit int) (interface{}, error) {
 	player := s.Repo.Get("players", bson.M{"_id": steamId})
 	if player.Err() != nil {
 		return nil, player.Err()
@@ -108,15 +118,19 @@ func (s *MatchService) GetPlayerHistory(steamId int64, limit int) (interface{}, 
 		matchIds = playerModel.Matches[:limit]
 	}
 
-	var matches []opendota.Match
+	handler, _, err := handlers.GetFirstHandler(s.Handlers)
+	if err != nil {
+		return nil, err
+	}
+
+	var matches []*protocol.CMsgGCMatchDetailsResponse
 	for _, matchId := range matchIds {
-		match, _, err := client.MatchService.Match(int64(matchId))
+		details, err := handler.DotaClient.RequestMatchDetails(context.Background(), matchId)
 		if err != nil {
-			log.Println(err)
-			continue
+			return nil, err
 		}
 
-		matches = append(matches, match)
+		matches = append(matches, details)
 	}
 
 	return matches, nil

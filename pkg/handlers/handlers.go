@@ -110,10 +110,12 @@ func GetFreeHandler(handlers []*Handler) (*Handler, uint16, error) {
 	for i, handler := range handlers {
 		if !handler.Occupied {
 			handler.Occupied = true
-			go func() {
-				handler.InitSteamConnection()
-			}()
-			time.Sleep(2 * time.Second)
+			if handler.SteamClient == nil || handler.DotaClient == nil {
+				go func() {
+					handler.InitSteamConnection()
+				}()
+				time.Sleep(2 * time.Second)
+			}
 			return handler, uint16(i), nil
 		}
 	}
@@ -131,7 +133,7 @@ func GetFirstHandler(handlers []*Handler) (*Handler, uint16, error) {
 		go func() {
 			handler.InitSteamConnection()
 		}()
+		time.Sleep(3 * time.Second)
 	}
-	time.Sleep(3 * time.Second)
 	return handler, 0, nil
 }
