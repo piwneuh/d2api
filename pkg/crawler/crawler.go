@@ -7,9 +7,12 @@ import (
 	"d2api/pkg/wires"
 	"log"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func start() bool {
+func crawlMatches() {
 	for i, matchIdx := range scheduled_matches.Get() {
 		match, err := wires.Instance.MatchService.GetMatch(matchIdx)
 		if err != nil {
@@ -17,22 +20,41 @@ func start() bool {
 			continue
 		}
 
-		switch match.(type) {
-		case models.MatchDetails:
-			log.Println("Match details: ", match)
-		case models.MatchLobby:
-			log.Println("Match lobby: ", match)
+		// matchIdxInt, err := strconv.Atoi(matchIdx)
+		// if err != nil {
+		// 	log.Println("Failed to convert matchIdx to int: ", err)
+		// 	continue
+		// }
+
+		switch match := match.(type) {
 		case models.MatchCancel:
 			log.Println("Match cancel: ", match)
+			if match.IsTournamentMatch {
+				log.Println("Match is tournament match, cancelled")
+				log.Println("Match", match)
+			}
 			scheduled_matches.Remove(i)
 		case models.MatchData:
 			log.Println("Match data: ", match)
+			if match.IsTournamentMatch {
+				log.Println("Match is tournament match, data")
+				log.Println("Match", match)
+			}
 			scheduled_matches.Remove(i)
+
+			opts := options.Update().SetUpsert(true)
+			for _, player := range match.Match.Players {
+				wires.Repo.Update("players", player.AccountId, bson.M{
+					"$push": bson.M{"matches": bson.M{
+						"$each":     bson.A{match.Match.MatchId},
+						"$position": 0,
+					}},
+				}, opts)
+			}
 		default:
-			log.Println("Unknown match type: ", match)
+			continue
 		}
 	}
-	return true
 }
 
 func Init(config *config.Config) bool {
@@ -43,11 +65,7 @@ func Init(config *config.Config) bool {
 		for {
 			select {
 			case <-ticker.C:
-				flag := start()
-
-				if !flag {
-					return false
-				}
+				crawlMatches()
 			case <-quit:
 				ticker.Stop()
 				return true

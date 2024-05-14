@@ -10,10 +10,15 @@ import (
 	"errors"
 	"log"
 	"slices"
+	"strconv"
 	"strings"
+	"time"
+
+	steamId "github.com/paralin/go-steam/steamid"
 
 	"github.com/paralin/go-dota2/cso"
 	"github.com/paralin/go-dota2/protocol"
+	"google.golang.org/protobuf/proto"
 )
 
 func GetGoodAndBadGuys(lobby *protocol.CSODOTALobby) ([]uint64, []uint64, error) {
@@ -129,4 +134,141 @@ func GetAllMatchIdxs() ([]string, error) {
 	}
 
 	return keys, nil
+}
+
+func MatchScheduleThread(hrs *[]*h.Handler, req requests.CreateMatchReq, matchIdx string, timeToCancel uint32) {
+	if req.StartTime != "" {
+		startTime, err := time.Parse(time.RFC3339, req.StartTime)
+		if err != nil {
+			log.Fatalf("Failed to parse start time: %v", err)
+			return
+		}
+
+		time.Sleep(time.Until(startTime))
+	}
+	var handler *h.Handler
+	var handlerId uint16
+	var err error
+
+	for {
+		handler, handlerId, err = h.GetFreeHandler(*hrs)
+		if err != nil {
+			time.Sleep(5 * time.Second)
+			log.Println("No available bot, retrying in 5 seconds")
+			continue
+		}
+
+		break
+	}
+
+	SetMatchRedis(matchIdx, m.MatchDetails{
+		MatchStatus: m.MatchStatus{Status: "scheduled", MatchId: 0},
+		HandlerId:   handlerId,
+	})
+
+	handler.DotaClient.DestroyLobby(context.Background())
+	time.Sleep(1 * time.Second)
+
+	// Create the lobby
+	lobbyVisibility := protocol.DOTALobbyVisibility_DOTALobbyVisibility_Public
+
+	lobbyDetails := &protocol.CMsgPracticeLobbySetDetails{
+		GameName:     proto.String(req.LobbyConfig.GameName),
+		Visibility:   &lobbyVisibility,
+		PassKey:      proto.String(req.LobbyConfig.PassKey),
+		ServerRegion: proto.Uint32(req.LobbyConfig.ServerRegion),
+		GameMode:     proto.Uint32(GetGameModeFromString(req.LobbyConfig.GameMode)),
+	}
+
+	handler.DotaClient.CreateLobby(lobbyDetails)
+	time.Sleep(1 * time.Second)
+
+	handler.DotaClient.SetLobbyCoach(protocol.DOTA_GC_TEAM_DOTA_GC_TEAM_GOOD_GUYS)
+
+	// Invite the teamA
+	for _, id := range req.TeamA {
+		handler.DotaClient.InviteLobbyMember(steamId.SteamId(id))
+	}
+
+	// Invite the teamB
+	for _, id := range req.TeamB {
+		handler.DotaClient.InviteLobbyMember(steamId.SteamId(id))
+	}
+
+	lobbyCreationTime := time.Now()
+	lobbyExpirationTime := lobbyCreationTime.Add(time.Duration(timeToCancel) * time.Second)
+
+	for {
+		time.Sleep(2 * time.Second)
+		lobby, err := GetCurrentLobby(handler)
+		if err != nil {
+			log.Fatalf("Failed to get lobby: %v", err)
+		}
+
+		goodGuys, badGuys, err := GetGoodAndBadGuys(lobby)
+		if err != nil {
+			log.Fatalf("Failed to get good and bad guys: %v", err)
+		}
+
+		if AreAllPlayerHere(goodGuys, badGuys, &req) {
+			break
+		}
+
+		if time.Now().After(lobbyExpirationTime) {
+			match, err := GetMatchRedis(matchIdx)
+			if err != nil {
+				log.Fatalf("Failed to get match: %v", err)
+			}
+
+			missingPlayers := GetMissingPlayers(goodGuys, badGuys, &req)
+
+			match.Status = "cancelled"
+			match.CancelReason = "reason: players didn't join in time. players: "
+			for _, id := range missingPlayers {
+				match.CancelReason += strconv.FormatUint(id, 10) + ", "
+			}
+			match.CancelReason = match.CancelReason[:len(match.CancelReason)-2]
+
+			err = SetMatchRedis(matchIdx, *match)
+			if err != nil {
+				log.Fatalf("Failed to set match: %v", err)
+			}
+
+			handler.DotaClient.DestroyLobby(context.Background())
+			handler.Occupied = false
+			return
+		}
+	}
+
+	// Start the game
+	handler.DotaClient.LaunchLobby()
+	for {
+		time.Sleep(2 * time.Second)
+		lobby, err := GetCurrentLobby(handler)
+		if err != nil {
+			log.Fatalf("Failed to get lobby: %v", err)
+		}
+
+		if lobby.MatchId == nil {
+			continue
+		}
+
+		match, err := GetMatchRedis(matchIdx)
+		if err != nil {
+			log.Fatalf("Failed to get match: %v", err)
+		}
+
+		match.MatchId = *lobby.MatchId
+		match.Status = "started"
+		err = SetMatchRedis(matchIdx, *match)
+		if err != nil {
+			log.Fatalf("Failed to set match: %v", err)
+		}
+
+		break
+	}
+
+	//Abandon the lobby
+	handler.DotaClient.AbandonLobby()
+	handler.Occupied = false
 }

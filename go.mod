@@ -4,7 +4,6 @@ go 1.21
 
 require (
 	github.com/gin-gonic/gin v1.9.1
-	github.com/golang/protobuf v1.5.3
 	github.com/jasonodonnell/go-opendota v0.0.0-20191002191401-cfa581a66a4f
 	github.com/joho/godotenv v1.5.1
 	github.com/paralin/go-dota2 v0.0.0-20230812030130-d63690b89ff0
@@ -12,6 +11,7 @@ require (
 	github.com/redis/go-redis/v9 v9.5.1
 	github.com/sirupsen/logrus v1.9.3
 	go.mongodb.org/mongo-driver v1.15.0
+	google.golang.org/protobuf v1.32.0
 )
 
 require (
@@ -27,6 +27,7 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.17.0 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
+	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -51,6 +52,5 @@ require (
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
-	google.golang.org/protobuf v1.32.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
