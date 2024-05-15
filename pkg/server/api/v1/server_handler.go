@@ -3,6 +3,7 @@ package v1
 import (
 	"context"
 	"d2api/pkg/requests"
+	"d2api/pkg/response"
 	"d2api/pkg/wires"
 	"strconv"
 
@@ -33,7 +34,7 @@ func postScheduleTournament(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, gin.H{"message": "round scheduled"})
+	c.JSON(200, make([]response.TournamentEndRequest, 0))
 }
 
 func postMatch(c *gin.Context) {
