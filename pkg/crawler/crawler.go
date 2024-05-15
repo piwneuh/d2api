@@ -3,7 +3,9 @@ package crawler
 import (
 	"d2api/config"
 	"d2api/pkg/models"
+	"d2api/pkg/response"
 	"d2api/pkg/scheduled_matches"
+	"d2api/pkg/utils"
 	"d2api/pkg/wires"
 	"log"
 	"time"
@@ -13,64 +15,70 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// func matchFinished(match *models.MatchData, tournamentEndpoint string) {
-// if match.IsTournamentMatch {
-// 	res := wires.Repo.Get("round", bson.M{"tournamentId": match.TournamentId, "finished": false})
-// 	if res.Err() != nil {
-// 		log.Println("Failed to get round: ", res.Err())
-// 		return
-// 	}
+func matchFinished(match *models.MatchData, tournamentEndpoint string, i int) {
+	if match.IsTournamentMatch {
+		outcome := match.Match.GetMatchOutcome()
+		radiant := response.TeamEnd{
+			Score:  int(*match.Match.RadiantTeamScore),
+			TeamId: match.TournamentMatchModel.Team1Id,
+		}
+		dire := response.TeamEnd{
+			Score:  int(*match.Match.DireTeamScore),
+			TeamId: match.TournamentMatchModel.Team2Id,
+		}
 
-// 	var round models.TournamentRound
-// 	if err := res.Decode(&round); err != nil {
-// 		log.Println("Failed to decode round: ", err)
-// 		return
-// 	}
+		resp := response.TournamentEndRequest{
+			TourId:    match.TournamentMatchModel.TournamentId,
+			MatchId:   match.TournamentMatchModel.MatchIdx,
+			Iteration: 1,
+			Cancelled: false,
+		}
 
-// 	round.Finished = true
-// 	for _, roundMatch := range round.Matches {
-// 		if match.MatchId == uint64(roundMatch.MatchIdx) {
-// 			roundMatch.Finished = true
-// 		}
+		if outcome == protocol.EMatchOutcome_k_EMatchOutcome_RadVictory {
+			resp.Winner = radiant
+			resp.Loser = dire
+		} else {
+			resp.Winner = dire
+			resp.Loser = radiant
+		}
 
-// 		if !roundMatch.Finished {
-// 			round.Finished = false
-// 		}
-// 	}
+		sent := false
+		for i := 0; i < 5; i++ {
+			sent = utils.SendMatchResultToTournament(tournamentEndpoint, &resp)
+			if sent {
+				break
+			}
+		}
 
-// 	_, err := wires.Repo.Update("round", bson.M{"tournamentId": match.TournamentId, "finished": false}, round)
-// 	if err != nil {
-// 		log.Println("Failed to update round: ", err)
-// 		return
-// 	}
+		if !sent {
+			log.Println("Could not send match result to tournament")
+		}
+	}
 
-// 	var winner, loser response.TeamEnd
-// 	outcome := match.Match.GetMatchOutcome()
-// 	if outcome == protocol.EMatchOutcome_k_EMatchOutcome_RadVictory {
-// 		winner.TeamId = round.
-// 	} else {
+	opts := options.Update().SetUpsert(true)
+	for _, player := range match.Match.Players {
+		playerId := *player.AccountId
+		matchId := *match.Match.MatchId
 
-// 	}
-// }
+		go func(playerId uint32, matchId uint64) {
+			_, err := wires.Repo.Update("players", bson.M{"_id": playerId}, bson.M{
+				"$push": bson.M{"matches": bson.M{
+					"$each":     bson.A{matchId},
+					"$position": 0,
+				}},
+			}, opts)
 
-// 	opts := options.Update().SetUpsert(true)
-// 	for _, player := range match.Match.Players {
-// 		_, err := wires.Repo.Update("players", player.AccountId, bson.M{
-// 			"$push": bson.M{"matches": bson.M{
-// 				"$each":     bson.A{match.Match.MatchId},
-// 				"$position": 0,
-// 			}},
-// 		}, opts)
-// 		if err != nil {
-// 			log.Println("Failed to update player: ", err)
-// 			continue
-// 		}
-// 	}
-// }
+			if err != nil {
+				log.Println("Failed to update player: ", err)
+			}
+		}(playerId, matchId)
+	}
+
+	scheduled_matches.Remove(i)
+}
 
 func crawlMatches(cfg *config.Config) {
-	// tournamentEndpoint := cfg.Tournament.URL + "/tournaments/move-teams-to-next-round"
-	_ = cfg
+	tournamentEndpoint := cfg.Tournament.URL + "/tournaments/move-teams-to-next-round"
 
 	for i, matchIdx := range scheduled_matches.Get() {
 		match, err := wires.Instance.MatchService.GetMatch(matchIdx)
@@ -97,27 +105,7 @@ func crawlMatches(cfg *config.Config) {
 		case models.MatchData:
 			log.Println("Match finished: ")
 			log.Println("Outcome: ", protocol.EMatchOutcome_name[int32(match.Match.GetMatchOutcome())])
-
-			opts := options.Update().SetUpsert(true)
-			for _, player := range match.Match.Players {
-				playerId := *player.AccountId
-				matchId := *match.Match.MatchId
-
-				go func(playerId uint32, matchId uint64) {
-					_, err := wires.Repo.Update("players", bson.M{"_id": playerId}, bson.M{
-						"$push": bson.M{"matches": bson.M{
-							"$each":     bson.A{matchId},
-							"$position": 0,
-						}},
-					}, opts)
-
-					if err != nil {
-						log.Println("Failed to update player: ", err)
-					}
-				}(playerId, matchId)
-			}
-
-			scheduled_matches.Remove(i)
+			matchFinished(&match, tournamentEndpoint, i)
 		default:
 			continue
 		}

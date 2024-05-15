@@ -28,23 +28,6 @@ func NewTournamentService(handlers []*handlers.Handler, config *config.Config, r
 }
 
 func (t *TournamentService) ScheduleRound(round []requests.MatchForMiddleware) error {
-	tourRound := models.TournamentRound{
-		Finished:     false,
-		TournamentId: round[0].TournamentId,
-	}
-
-	for _, match := range round {
-		tourRound.Matches = append(tourRound.Matches, models.MatchModel{
-			MatchForMiddleware: match,
-			Finished:           false,
-		})
-	}
-
-	_, err := t.Repo.Insert("round", tourRound)
-	if err != nil {
-		return err
-	}
-
 	for _, match := range round {
 		matchIdx := strconv.Itoa(match.MatchIdx)
 
