@@ -20,16 +20,16 @@ func matchFinished(match *models.MatchData, tournamentEndpoint string, i int) {
 		outcome := match.Match.GetMatchOutcome()
 		radiant := response.TeamEnd{
 			Score:  int(*match.Match.RadiantTeamScore),
-			TeamId: match.TournamentMatchModel.Team1Id,
+			TeamId: match.TourMatch.Team1Id,
 		}
 		dire := response.TeamEnd{
 			Score:  int(*match.Match.DireTeamScore),
-			TeamId: match.TournamentMatchModel.Team2Id,
+			TeamId: match.TourMatch.Team2Id,
 		}
 
 		resp := response.TournamentEndRequest{
-			TourId:    match.TournamentMatchModel.TournamentId,
-			MatchId:   match.TournamentMatchModel.MatchIdx,
+			TourId:    match.TourMatch.TournamentId,
+			MatchId:   match.TourMatch.MatchIdx,
 			Iteration: 1,
 			Cancelled: false,
 		}

@@ -32,7 +32,7 @@ func (t *TournamentService) ScheduleRound(round []requests.MatchForMiddleware) e
 		matchIdx := strconv.Itoa(match.MatchIdx)
 
 		utils.SetMatchRedis(matchIdx, models.MatchDetails{
-			MatchStatus: models.MatchStatus{Status: "scheduled", MatchId: 0, IsTournamentMatch: true},
+			MatchStatus: models.MatchStatus{Status: "scheduled", MatchId: 0, IsTournamentMatch: true, TourMatch: match},
 		})
 
 		scheduled_matches.Add(matchIdx)
