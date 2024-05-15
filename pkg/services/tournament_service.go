@@ -69,14 +69,14 @@ func createTournamentMatch(match *requests.TourMatch) (*requests.CreateMatchReq,
 			return nil, errors.New("wrong steam id for player " + player.SteamId)
 		}
 
-		if player.Team == match.Team1.Name {
+		if player.Team == "team1" {
 			req.TeamA = append(req.TeamA, id)
 		} else {
 			req.TeamB = append(req.TeamB, id)
 		}
 	}
 
-	startTime := time.Unix(match.StartEpoch, 0)
+	startTime := time.UnixMilli(match.StartEpoch)
 	req.StartTime = startTime.Format(time.RFC3339)
 	return &req, nil
 }
