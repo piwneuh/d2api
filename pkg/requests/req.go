@@ -18,7 +18,7 @@ type LobbyConfig struct {
 	GameMode     string `json:"gameMode"`
 }
 
-type MatchForMiddleware struct {
+type TourMatch struct {
 	MatchIdx          int                   `json:"matchIdx"`
 	Region            string                `json:"region"`
 	TournamentId      int                   `json:"tournamentId"`
@@ -42,4 +42,8 @@ type PlayerForMiddleware struct {
 	Team          string `json:"team"`
 	SteamId       string `json:"steam_id_64"`
 	WalletAddress string `json:"walletAddress"`
+}
+
+type ScheduleMatchRequest struct {
+	Matches []TourMatch `json:"matches"`
 }

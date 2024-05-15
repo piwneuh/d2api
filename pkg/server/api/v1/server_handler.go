@@ -22,13 +22,13 @@ func RegisterServer(router *gin.Engine, ctx context.Context) {
 }
 
 func postScheduleTournament(c *gin.Context) {
-	var req []requests.MatchForMiddleware
+	var req requests.ScheduleMatchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
-	err := wires.Instance.TournamentService.ScheduleRound(req)
+	err := wires.Instance.TournamentService.ScheduleRound(req.Matches)
 	if err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return

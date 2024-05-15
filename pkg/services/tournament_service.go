@@ -27,7 +27,7 @@ func NewTournamentService(handlers []*handlers.Handler, config *config.Config, r
 	}
 }
 
-func (t *TournamentService) ScheduleRound(round []requests.MatchForMiddleware) error {
+func (t *TournamentService) ScheduleRound(round []requests.TourMatch) error {
 	for _, match := range round {
 		matchIdx := strconv.Itoa(match.MatchIdx)
 
@@ -48,7 +48,7 @@ func (t *TournamentService) ScheduleRound(round []requests.MatchForMiddleware) e
 	return nil
 }
 
-func createTournamentMatch(match *requests.MatchForMiddleware) (*requests.CreateMatchReq, error) {
+func createTournamentMatch(match *requests.TourMatch) (*requests.CreateMatchReq, error) {
 	var req requests.CreateMatchReq
 	key := strconv.Itoa(match.TournamentId) + "_" + strconv.Itoa(match.MatchIdx)
 	region, err := strconv.ParseUint(match.Region, 10, 32)

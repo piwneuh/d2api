@@ -10,7 +10,7 @@ type MatchStatus struct {
 	MatchId           uint64
 	Status            string
 	IsTournamentMatch bool
-	TourMatch         requests.MatchForMiddleware
+	TourMatch         requests.TourMatch
 }
 
 type MatchDetails struct {
