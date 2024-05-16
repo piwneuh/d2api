@@ -3,7 +3,6 @@ package v1
 import (
 	"context"
 	"d2api/pkg/requests"
-	"d2api/pkg/response"
 	"d2api/pkg/wires"
 	"strconv"
 
@@ -28,13 +27,13 @@ func postScheduleTournament(c *gin.Context) {
 		return
 	}
 
-	err := wires.Instance.TournamentService.ScheduleRound(req.Matches)
+	res, err := wires.Instance.TournamentService.ScheduleRound(req.Matches)
 	if err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(200, make([]response.TournamentEndRequest, 0))
+	c.JSON(200, res)
 }
 
 func postMatch(c *gin.Context) {

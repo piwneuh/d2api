@@ -6,6 +6,7 @@ import (
 	"d2api/pkg/models"
 	"d2api/pkg/repository"
 	"d2api/pkg/requests"
+	"d2api/pkg/response"
 	"d2api/pkg/scheduled_matches"
 	"d2api/pkg/utils"
 	"errors"
@@ -27,25 +28,60 @@ func NewTournamentService(handlers []*handlers.Handler, config *config.Config, r
 	}
 }
 
-func (t *TournamentService) ScheduleRound(round []requests.TourMatch) error {
+func (t *TournamentService) ScheduleRound(round []requests.TourMatch) ([]response.TournamentEndRequest, error) {
+	var cancelled []response.TournamentEndRequest
 	for _, match := range round {
-		matchIdx := strconv.Itoa(match.MatchIdx)
+		if match.Cancelled {
+			winner := -1
+			loser := -1
+			score := -1
 
-		utils.SetMatchRedis(matchIdx, models.MatchDetails{
-			MatchStatus: models.MatchStatus{Status: "scheduled", MatchId: 0, IsTournamentMatch: true, TourMatch: match},
-		})
+			if match.Team1Id != -1 {
+				winner = match.Team1Id
+				loser = match.Team2Id
 
-		scheduled_matches.Add(matchIdx)
+				score = 0
+			} else if match.Team2Id != -1 {
+				winner = match.Team2Id
+				loser = match.Team1Id
 
-		req, err := createTournamentMatch(&match)
-		if err != nil {
-			return err
+				score = 0
+			}
+
+			moveTeams := response.TournamentEndRequest{
+				TourId:    match.TournamentId,
+				MatchId:   match.MatchIdx,
+				Cancelled: true,
+				Iteration: match.Iteration,
+				Winner: response.TeamEnd{
+					TeamId: winner,
+					Score:  score,
+				},
+				Loser: response.TeamEnd{
+					TeamId: loser,
+					Score:  -1,
+				},
+			}
+			cancelled = append(cancelled, moveTeams)
+		} else {
+			matchIdx := strconv.Itoa(match.MatchIdx)
+
+			utils.SetMatchRedis(matchIdx, models.MatchDetails{
+				MatchStatus: models.MatchStatus{Status: "scheduled", MatchId: 0, IsTournamentMatch: true, TourMatch: match},
+			})
+
+			scheduled_matches.Add(matchIdx)
+
+			req, err := createTournamentMatch(&match)
+			if err != nil {
+				return make([]response.TournamentEndRequest, 0), nil
+			}
+
+			go utils.MatchScheduleThread(&t.Handlers, *req, matchIdx, t.Config.TimeToCancel)
 		}
-
-		go utils.MatchScheduleThread(&t.Handlers, *req, matchIdx, t.Config.TimeToCancel)
 	}
 
-	return nil
+	return cancelled, nil
 }
 
 func createTournamentMatch(match *requests.TourMatch) (*requests.CreateMatchReq, error) {
