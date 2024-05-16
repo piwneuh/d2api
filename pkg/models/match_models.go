@@ -15,13 +15,15 @@ type MatchStatus struct {
 
 type MatchDetails struct {
 	MatchStatus
-	HandlerId    uint16
-	CancelReason string
+	HandlerId     uint16
+	CancelReason  string
+	TeamDidntShow string
 }
 
 type MatchCancel struct {
 	MatchStatus
-	Reason string
+	Reason        string
+	TeamDidntShow string
 }
 
 type MatchLobby struct {

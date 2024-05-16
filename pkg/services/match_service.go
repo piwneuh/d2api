@@ -60,7 +60,7 @@ func (s *MatchService) GetMatch(matchIdx string) (interface{}, error) {
 	}
 
 	if match.Status == "cancelled" {
-		return models.MatchCancel{MatchStatus: match.MatchStatus}, nil
+		return models.MatchCancel{MatchStatus: match.MatchStatus, Reason: match.CancelReason, TeamDidntShow: match.TeamDidntShow}, nil
 	} else if match.Status == "scheduled" {
 		lobby, err := utils.GetCurrentLobby(handler)
 		if err != nil {

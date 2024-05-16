@@ -15,46 +15,52 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func matchFinished(match *models.MatchData, tournamentEndpoint string, i int) {
-	if match.IsTournamentMatch {
-		outcome := match.Match.GetMatchOutcome()
-		radiant := response.TeamEnd{
-			Score:  int(*match.Match.RadiantTeamScore),
-			TeamId: match.TourMatch.Team1Id,
-		}
-		dire := response.TeamEnd{
-			Score:  int(*match.Match.DireTeamScore),
-			TeamId: match.TourMatch.Team2Id,
-		}
+func sendMatchFinished(match *models.MatchData, tournamentEndpoint string) {
+	outcome := match.Match.GetMatchOutcome()
+	radiant := response.TeamEnd{
+		Score:  int(*match.Match.RadiantTeamScore),
+		TeamId: match.TourMatch.Team1Id,
+	}
+	dire := response.TeamEnd{
+		Score:  int(*match.Match.DireTeamScore),
+		TeamId: match.TourMatch.Team2Id,
+	}
 
-		resp := response.TournamentEndRequest{
-			TourId:    match.TourMatch.TournamentId,
-			MatchId:   match.TourMatch.MatchIdx,
-			Iteration: 1,
-			Cancelled: false,
-		}
+	resp := response.TournamentEndRequest{
+		TourId:    match.TourMatch.TournamentId,
+		MatchId:   match.TourMatch.MatchIdx,
+		Iteration: 1,
+		Cancelled: false,
+	}
 
-		if outcome == protocol.EMatchOutcome_k_EMatchOutcome_RadVictory {
-			resp.Winner = radiant
-			resp.Loser = dire
-		} else {
-			resp.Winner = dire
-			resp.Loser = radiant
-		}
+	if outcome == protocol.EMatchOutcome_k_EMatchOutcome_RadVictory {
+		resp.Winner = radiant
+		resp.Loser = dire
+	} else {
+		resp.Winner = dire
+		resp.Loser = radiant
+	}
 
-		sent := false
-		for i := 0; i < 5; i++ {
-			sent = utils.SendMatchResultToTournament(tournamentEndpoint, &resp)
-			if sent {
-				break
-			}
-		}
-
-		if !sent {
-			log.Println("Could not send match result to tournament")
+	sent := false
+	for i := 0; i < 5; i++ {
+		sent = utils.SendMatchResultToTournament(tournamentEndpoint, &resp)
+		if sent {
+			break
 		}
 	}
 
+	if !sent {
+		log.Println("Could not send match result to tournament")
+	}
+}
+
+func matchFinished(match *models.MatchData, i int) {
+	if match.IsTournamentMatch {
+		// Send match finished to tournament service
+		go sendMatchFinished(match, tournamentEndpoint)
+	}
+
+	// Save player history
 	opts := options.Update().SetUpsert(true)
 	for _, player := range match.Match.Players {
 		playerId := *player.AccountId
@@ -77,9 +83,61 @@ func matchFinished(match *models.MatchData, tournamentEndpoint string, i int) {
 	scheduled_matches.Remove(i)
 }
 
-func crawlMatches(cfg *config.Config) {
-	tournamentEndpoint := cfg.Tournament.URL + "/tournaments/move-teams-to-next-round"
+func sendMatchCancelled(match *models.MatchCancel, tournamentEndpoint string) {
+	radiant := response.TeamEnd{
+		TeamId: match.TourMatch.Team1Id,
+		Score:  0,
+	}
+	dire := response.TeamEnd{
+		TeamId: match.TourMatch.Team2Id,
+		Score:  0,
+	}
 
+	resp := response.TournamentEndRequest{
+		TourId:    match.TourMatch.TournamentId,
+		MatchId:   match.TourMatch.MatchIdx,
+		Iteration: 1,
+		Cancelled: true,
+	}
+
+	switch match.TeamDidntShow {
+	case "teamA":
+		radiant.Score = -1
+		resp.Winner = dire
+		resp.Loser = radiant
+	case "teamB":
+		dire.Score = -1
+		resp.Winner = radiant
+		resp.Loser = dire
+	default:
+		radiant.Score = -1
+		dire.Score = -1
+		resp.Winner = radiant
+		resp.Loser = dire
+	}
+
+	sent := false
+	for i := 0; i < 5; i++ {
+		sent = utils.SendMatchResultToTournament(tournamentEndpoint, &resp)
+		if sent {
+			break
+		}
+	}
+
+	if !sent {
+		log.Println("Could not send match result to tournament")
+	}
+}
+
+func matchCancelled(match *models.MatchCancel, i int) {
+	log.Println("Match cancel: ", match)
+	if match.IsTournamentMatch {
+		go sendMatchCancelled(match, tournamentEndpoint)
+	}
+	scheduled_matches.Remove(i)
+}
+
+func crawlMatches() {
 	for i, matchIdx := range scheduled_matches.Get() {
 		match, err := wires.Instance.MatchService.GetMatch(matchIdx)
 		if err != nil {
@@ -87,40 +145,32 @@ func crawlMatches(cfg *config.Config) {
 			continue
 		}
 
-		// matchIdxInt, err := strconv.Atoi(matchIdx)
-		// if err != nil {
-		// 	log.Println("Failed to convert matchIdx to int: ", err)
-		// 	continue
-		// }
-
 		switch match := match.(type) {
 		case models.MatchCancel:
-			log.Println("Match cancel: ", match)
-			if match.IsTournamentMatch {
-				log.Println("Match is tournament match, cancelled")
-				log.Println("Match", match)
-			}
-			scheduled_matches.Remove(i)
-
+			log.Println("Match cancelled: ", match)
+			matchCancelled(&match, i)
 		case models.MatchData:
 			log.Println("Match finished: ")
 			log.Println("Outcome: ", protocol.EMatchOutcome_name[int32(match.Match.GetMatchOutcome())])
-			matchFinished(&match, tournamentEndpoint, i)
+			matchFinished(&match, i)
 		default:
 			continue
 		}
 	}
 }
 
+var tournamentEndpoint string
+
 func Init(config *config.Config) bool {
 	ticker := time.NewTicker(time.Duration(config.Interval) * time.Second)
+	tournamentEndpoint = config.Tournament.URL + "/tournaments/move-teams-to-next-round"
 	quit := make(chan struct{})
 	scheduled_matches.Init()
 	go func() bool {
 		for {
 			select {
 			case <-ticker.C:
-				crawlMatches(config)
+				crawlMatches()
 			case <-quit:
 				ticker.Stop()
 				return true

@@ -79,22 +79,24 @@ func AreAllPlayerHere(goodGuys []uint64, badGuys []uint64, req *requests.CreateM
 	return true
 }
 
-func GetMissingPlayers(goodGuys []uint64, badGuys []uint64, req *requests.CreateMatchReq) []uint64 {
+func GetMissingPlayers(goodGuys []uint64, badGuys []uint64, req *requests.CreateMatchReq) ([]uint64, bool, bool) {
 	missingPlayers := make([]uint64, 0)
-
+	var missingTeamA, missingTeamB bool
 	for _, id := range req.TeamA {
 		if !slices.Contains(goodGuys, id) {
 			missingPlayers = append(missingPlayers, id)
+			missingTeamA = true
 		}
 	}
 
 	for _, id := range req.TeamB {
 		if !slices.Contains(badGuys, id) {
 			missingPlayers = append(missingPlayers, id)
+			missingTeamB = true
 		}
 	}
 
-	return missingPlayers
+	return missingPlayers, missingTeamA, missingTeamB
 }
 
 func GetMatchRedis(matchIdx string) (*m.MatchDetails, error) {
@@ -220,7 +222,7 @@ func MatchScheduleThread(hrs *[]*h.Handler, req requests.CreateMatchReq, matchId
 				log.Fatalf("Failed to get match: %v", err)
 			}
 
-			missingPlayers := GetMissingPlayers(goodGuys, badGuys, &req)
+			missingPlayers, missingTeamA, missingTeamB := GetMissingPlayers(goodGuys, badGuys, &req)
 
 			match.Status = "cancelled"
 			match.CancelReason = "reason: players didn't join in time. players: "
@@ -228,6 +230,13 @@ func MatchScheduleThread(hrs *[]*h.Handler, req requests.CreateMatchReq, matchId
 				match.CancelReason += strconv.FormatUint(id, 10) + ", "
 			}
 			match.CancelReason = match.CancelReason[:len(match.CancelReason)-2]
+			if missingTeamA && missingTeamB {
+				match.TeamDidntShow = "both"
+			} else if missingTeamA {
+				match.TeamDidntShow = "teamA"
+			} else {
+				match.TeamDidntShow = "teamB"
+			}
 
 			err = SetMatchRedis(matchIdx, *match)
 			if err != nil {
