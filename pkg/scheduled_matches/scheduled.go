@@ -10,12 +10,13 @@ func Get() []string {
 	return scheduledMatches
 }
 
-func Remove(i int) {
-	if i == len(scheduledMatches)-1 {
-		scheduledMatches = scheduledMatches[:i]
-		return
+func Remove(matchIdx string) {
+	for i, idx := range scheduledMatches {
+		if idx == matchIdx {
+			scheduledMatches = append(scheduledMatches[:i], scheduledMatches[i+1:]...)
+			return
+		}
 	}
-	scheduledMatches = append(scheduledMatches[:i], scheduledMatches[i+1:]...)
 }
 
 func Init() {

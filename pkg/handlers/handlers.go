@@ -93,7 +93,7 @@ func (h *Handler) InitSteamConnection() {
 
 			eventCh, _, err := h.DotaClient.GetCache().SubscribeType(cso.Lobby) // Listen to lobby cache
 			if err != nil {
-				log.Fatalf("Failed to subscribe to lobby cache: %v", err)
+				log.Println("Failed to subscribe to lobby cache:", err)
 			}
 
 			lobbyEvent := <-eventCh

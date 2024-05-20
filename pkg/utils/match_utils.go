@@ -51,11 +51,16 @@ func GetGameModeFromString(gameMode string) uint32 {
 func GetCurrentLobby(handler *h.Handler) (*protocol.CSODOTALobby, error) {
 	lobby, err := handler.DotaClient.GetCache().GetContainerForTypeID(cso.Lobby)
 	if err != nil {
-		log.Fatalf("Failed to get lobby: %v", err)
+		log.Println("Failed to get lobby:", err)
 		return nil, err
 	}
 
-	return lobby.GetOne().(*protocol.CSODOTALobby), nil
+	lobbyMessage := lobby.GetOne()
+	if lobbyMessage == nil {
+		return nil, errors.New("no lobby found")
+	}
+
+	return lobbyMessage.(*protocol.CSODOTALobby), nil
 }
 
 func AreAllPlayerHere(goodGuys []uint64, badGuys []uint64, req *requests.CreateMatchReq) bool {
@@ -131,7 +136,7 @@ func SetMatchRedis(matchIdx string, match m.MatchDetails) error {
 func GetAllMatchIdxs() ([]string, error) {
 	keys, err := redis.RedisClient.Keys(context.Background(), "*").Result()
 	if err != nil {
-		log.Fatalf("Failed to get keys: %v", err)
+		log.Println("Failed to get keys:", err)
 		return nil, err
 	}
 
@@ -142,7 +147,7 @@ func MatchScheduleThread(hrs *[]*h.Handler, req requests.CreateMatchReq, matchId
 	if req.StartTime != "" {
 		startTime, err := time.Parse(time.RFC3339, req.StartTime)
 		if err != nil {
-			log.Fatalf("Failed to parse start time: %v", err)
+			log.Println("Failed to parse start time:", err)
 			return
 		}
 
@@ -163,12 +168,21 @@ func MatchScheduleThread(hrs *[]*h.Handler, req requests.CreateMatchReq, matchId
 		break
 	}
 
-	SetMatchRedis(matchIdx, m.MatchDetails{
-		MatchStatus: m.MatchStatus{Status: "scheduled", MatchId: 0},
-		HandlerId:   handlerId,
-	})
+	matchDetails, err := GetMatchRedis(matchIdx)
+	if err != nil {
+		log.Println("Failed to get match:", err)
+		return
+	}
+	matchDetails.Status = "scheduled"
+	matchDetails.HandlerId = handlerId
 
-	handler.DotaClient.DestroyLobby(context.Background())
+	SetMatchRedis(matchIdx, *matchDetails)
+
+	time.Sleep(1 * time.Second)
+	res, err := handler.DotaClient.DestroyLobby(context.Background())
+	if err != nil {
+		log.Println("Failed to destroy lobby: ", err, res)
+	}
 	time.Sleep(1 * time.Second)
 
 	// Create the lobby
@@ -204,12 +218,12 @@ func MatchScheduleThread(hrs *[]*h.Handler, req requests.CreateMatchReq, matchId
 		time.Sleep(2 * time.Second)
 		lobby, err := GetCurrentLobby(handler)
 		if err != nil {
-			log.Fatalf("Failed to get lobby: %v", err)
+			log.Println("Failed to get lobby: ", err)
 		}
 
 		goodGuys, badGuys, err := GetGoodAndBadGuys(lobby)
 		if err != nil {
-			log.Fatalf("Failed to get good and bad guys: %v", err)
+			log.Println("Failed to get good and bad guys: ", err)
 		}
 
 		if AreAllPlayerHere(goodGuys, badGuys, &req) {
@@ -219,7 +233,7 @@ func MatchScheduleThread(hrs *[]*h.Handler, req requests.CreateMatchReq, matchId
 		if time.Now().After(lobbyExpirationTime) {
 			match, err := GetMatchRedis(matchIdx)
 			if err != nil {
-				log.Fatalf("Failed to get match: %v", err)
+				log.Println("Failed to get match:", err)
 			}
 
 			missingPlayers, missingTeamA, missingTeamB := GetMissingPlayers(goodGuys, badGuys, &req)
@@ -240,7 +254,7 @@ func MatchScheduleThread(hrs *[]*h.Handler, req requests.CreateMatchReq, matchId
 
 			err = SetMatchRedis(matchIdx, *match)
 			if err != nil {
-				log.Fatalf("Failed to set match: %v", err)
+				log.Println("Failed to set match:", err)
 			}
 
 			handler.DotaClient.DestroyLobby(context.Background())
@@ -255,7 +269,7 @@ func MatchScheduleThread(hrs *[]*h.Handler, req requests.CreateMatchReq, matchId
 		time.Sleep(2 * time.Second)
 		lobby, err := GetCurrentLobby(handler)
 		if err != nil {
-			log.Fatalf("Failed to get lobby: %v", err)
+			log.Println("Failed to get lobby:", err)
 		}
 
 		if lobby.MatchId == nil {
@@ -264,14 +278,14 @@ func MatchScheduleThread(hrs *[]*h.Handler, req requests.CreateMatchReq, matchId
 
 		match, err := GetMatchRedis(matchIdx)
 		if err != nil {
-			log.Fatalf("Failed to get match: %v", err)
+			log.Println("Failed to get match:", err)
 		}
 
 		match.MatchId = *lobby.MatchId
 		match.Status = "started"
 		err = SetMatchRedis(matchIdx, *match)
 		if err != nil {
-			log.Fatalf("Failed to set match: %v", err)
+			log.Println("Failed to set match:", err)
 		}
 
 		break

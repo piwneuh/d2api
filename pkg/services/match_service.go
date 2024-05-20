@@ -64,7 +64,7 @@ func (s *MatchService) GetMatch(matchIdx string) (interface{}, error) {
 	} else if match.Status == "scheduled" {
 		lobby, err := utils.GetCurrentLobby(handler)
 		if err != nil {
-			log.Fatalf("Failed to get lobby: %v", err)
+			log.Println("Failed to get lobby: ", err)
 			return nil, err
 		}
 		return models.MatchLobby{MatchStatus: match.MatchStatus, Lobby: lobby}, nil
@@ -79,7 +79,7 @@ func (s *MatchService) GetMatch(matchIdx string) (interface{}, error) {
 		match.MatchStatus.Status = "finished"
 		err = utils.SetMatchRedis(matchIdx, *match)
 		if err != nil {
-			log.Fatalf("Failed to set match: %v", err)
+			log.Println("Failed to set match:", err)
 		}
 
 		return models.MatchData{MatchStatus: match.MatchStatus, Match: details.Match}, nil

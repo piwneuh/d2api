@@ -15,7 +15,17 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func sendMatchFinished(match *models.MatchData, tournamentEndpoint string) {
+func safeSending(data *response.TournamentEndRequest, repeatTimes int) {
+	for i := 0; i < repeatTimes; i++ {
+		if utils.SendMatchResultToTournament(tournamentEndpoint, data) {
+			log.Println("Match result sent to tournament")
+			return
+		}
+	}
+	log.Println("Failed to send match result to tournament")
+}
+
+func sendMatchFinished(match *models.MatchData) {
 	outcome := match.Match.GetMatchOutcome()
 	radiant := response.TeamEnd{
 		Score:  int(*match.Match.RadiantTeamScore),
@@ -41,23 +51,13 @@ func sendMatchFinished(match *models.MatchData, tournamentEndpoint string) {
 		resp.Loser = radiant
 	}
 
-	sent := false
-	for i := 0; i < 5; i++ {
-		sent = utils.SendMatchResultToTournament(tournamentEndpoint, &resp)
-		if sent {
-			break
-		}
-	}
-
-	if !sent {
-		log.Println("Could not send match result to tournament")
-	}
+	safeSending(&resp, 5)
 }
 
-func matchFinished(match *models.MatchData, i int) {
+func matchFinished(match *models.MatchData) {
 	if match.IsTournamentMatch {
 		// Send match finished to tournament service
-		go sendMatchFinished(match, tournamentEndpoint)
+		go sendMatchFinished(match)
 	}
 
 	// Save player history
@@ -79,11 +79,9 @@ func matchFinished(match *models.MatchData, i int) {
 			}
 		}(playerId, matchId)
 	}
-
-	scheduled_matches.Remove(i)
 }
 
-func sendMatchCancelled(match *models.MatchCancel, tournamentEndpoint string) {
+func sendMatchCancelled(match *models.MatchCancel) {
 	radiant := response.TeamEnd{
 		TeamId: match.TourMatch.Team1Id,
 		Score:  0,
@@ -116,29 +114,19 @@ func sendMatchCancelled(match *models.MatchCancel, tournamentEndpoint string) {
 		resp.Loser = dire
 	}
 
-	sent := false
-	for i := 0; i < 5; i++ {
-		sent = utils.SendMatchResultToTournament(tournamentEndpoint, &resp)
-		if sent {
-			break
-		}
-	}
-
-	if !sent {
-		log.Println("Could not send match result to tournament")
-	}
+	safeSending(&resp, 5)
 }
 
-func matchCancelled(match *models.MatchCancel, i int) {
+func matchCancelled(match *models.MatchCancel) {
 	log.Println("Match cancel: ", match)
 	if match.IsTournamentMatch {
-		go sendMatchCancelled(match, tournamentEndpoint)
+		go sendMatchCancelled(match)
 	}
-	scheduled_matches.Remove(i)
 }
 
 func crawlMatches() {
-	for i, matchIdx := range scheduled_matches.Get() {
+	toRemove := []string{}
+	for _, matchIdx := range scheduled_matches.Get() {
 		match, err := wires.Instance.MatchService.GetMatch(matchIdx)
 		if err != nil {
 			log.Println("Failed to get match: ", err)
@@ -148,14 +136,20 @@ func crawlMatches() {
 		switch match := match.(type) {
 		case models.MatchCancel:
 			log.Println("Match cancelled: ", match)
-			matchCancelled(&match, i)
+			matchCancelled(&match)
+			toRemove = append(toRemove, matchIdx)
 		case models.MatchData:
 			log.Println("Match finished: ")
 			log.Println("Outcome: ", protocol.EMatchOutcome_name[int32(match.Match.GetMatchOutcome())])
-			matchFinished(&match, i)
+			matchFinished(&match)
+			toRemove = append(toRemove, matchIdx)
 		default:
 			continue
 		}
+	}
+
+	for _, idx := range toRemove {
+		scheduled_matches.Remove(idx)
 	}
 }
 
