@@ -231,6 +231,7 @@ func MatchScheduleThread(hrs *[]*h.Handler, req requests.CreateMatchReq, matchId
 		}
 
 		if time.Now().After(lobbyExpirationTime) {
+			log.Println("Cancelling match due to timeout", matchIdx)
 			match, err := GetMatchRedis(matchIdx)
 			if err != nil {
 				log.Println("Failed to get match:", err)
@@ -251,6 +252,8 @@ func MatchScheduleThread(hrs *[]*h.Handler, req requests.CreateMatchReq, matchId
 			} else {
 				match.TeamDidntShow = "teamB"
 			}
+
+			log.Println("Match cancelled due to timeout", matchIdx)
 
 			err = SetMatchRedis(matchIdx, *match)
 			if err != nil {
