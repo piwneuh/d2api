@@ -176,14 +176,15 @@ func MatchScheduleThread(hrs *[]*h.Handler, req requests.CreateMatchReq, matchId
 	matchDetails.Status = "scheduled"
 	matchDetails.HandlerId = handlerId
 
-	SetMatchRedis(matchIdx, *matchDetails)
+	if err = SetMatchRedis(matchIdx, *matchDetails); err != nil {
+		log.Println("Failed to set match:", err)
+	}
 
 	time.Sleep(1 * time.Second)
-	res, err := handler.DotaClient.DestroyLobby(context.Background())
-	if err != nil {
+	if res, err := handler.DotaClient.DestroyLobby(context.Background()); err != nil {
 		log.Println("Failed to destroy lobby: ", err, res)
 	}
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	// Create the lobby
 	lobbyVisibility := protocol.DOTALobbyVisibility_DOTALobbyVisibility_Public
