@@ -47,3 +47,8 @@ type PlayerForMiddleware struct {
 type ScheduleMatchRequest struct {
 	Matches []TourMatch `json:"matches"`
 }
+
+type ReinvitePlayersReq struct {
+	MatchIdx int      `json:"matchIdx"`
+	Players  []uint64 `json:"players"`
+}

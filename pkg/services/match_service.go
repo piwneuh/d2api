@@ -18,6 +18,7 @@ import (
 
 	"github.com/jasonodonnell/go-opendota"
 	"github.com/paralin/go-dota2/protocol"
+	"github.com/paralin/go-steam/steamid"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -134,4 +135,18 @@ func (s *MatchService) GetPlayerHistory(steamId int64, limit int) (interface{}, 
 	}
 
 	return matches, nil
+}
+
+func (s *MatchService) ReinvitePlayers(req requests.ReinvitePlayersReq) error {
+	match, err := utils.GetMatchRedis(strconv.Itoa(req.MatchIdx))
+	if err != nil {
+		return err
+	}
+
+	handler := s.Handlers[match.HandlerId]
+	for _, player := range req.Players {
+		handler.DotaClient.InviteLobbyMember(steamid.SteamId(player))
+	}
+
+	return nil
 }
