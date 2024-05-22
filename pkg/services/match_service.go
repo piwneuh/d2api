@@ -13,6 +13,7 @@ import (
 	"d2api/pkg/models"
 	"d2api/pkg/repository"
 	"d2api/pkg/requests"
+	"d2api/pkg/response"
 	"d2api/pkg/scheduled_matches"
 	"d2api/pkg/utils"
 
@@ -89,6 +90,40 @@ func (s *MatchService) GetMatch(matchIdx string) (interface{}, error) {
 	} else {
 		return nil, errors.New("match not found")
 	}
+}
+
+func (s *MatchService) GetMatchInfo(matchIdx string) (*response.MatchInfo, error) {
+	data, err := s.GetMatch(matchIdx)
+	if err != nil {
+		return nil, err
+	}
+
+	var matchInfo *response.MatchInfo
+	switch match := data.(type) {
+	case models.MatchLobby:
+		log.Println("MatchLobby")
+		matchInfo = &response.MatchInfo{Status: match.MatchStatus.Status}
+		for _, player := range match.Lobby.AllMembers {
+			if *player.Team == *protocol.DOTA_GC_TEAM_DOTA_GC_TEAM_GOOD_GUYS.Enum() {
+				matchInfo.RadiantPlayers = append(matchInfo.RadiantPlayers, *player.Id)
+			} else if *player.Team == *protocol.DOTA_GC_TEAM_DOTA_GC_TEAM_BAD_GUYS.Enum() {
+				matchInfo.DirePlayers = append(matchInfo.DirePlayers, *player.Id)
+			}
+		}
+	case models.MatchData:
+		log.Println("MatchData")
+		matchInfo = &response.MatchInfo{Status: match.MatchStatus.Status}
+	case models.MatchCancel:
+		log.Println("MatchCancel")
+		matchInfo = &response.MatchInfo{Status: match.MatchStatus.Status, Cancelled: true}
+	case models.MatchDetails:
+		log.Println("MatchDetails")
+		matchInfo = &response.MatchInfo{Status: match.MatchStatus.Status}
+	default:
+		return nil, errors.New("unknown match type")
+	}
+
+	return matchInfo, nil
 }
 
 func (s *MatchService) GetPlayerHistoryOpenDota(steamId int64, limit int) (interface{}, error) {
