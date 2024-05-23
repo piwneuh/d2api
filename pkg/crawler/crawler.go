@@ -39,7 +39,7 @@ func sendMatchFinished(match *models.MatchData) {
 	resp := response.TournamentEndRequest{
 		TourId:    match.TourMatch.TournamentId,
 		MatchId:   match.TourMatch.MatchIdx,
-		Iteration: 1,
+		Iteration: match.TourMatch.Iteration,
 		Cancelled: false,
 	}
 
@@ -94,7 +94,7 @@ func sendMatchCancelled(match *models.MatchCancel) {
 	resp := response.TournamentEndRequest{
 		TourId:    match.TourMatch.TournamentId,
 		MatchId:   match.TourMatch.MatchIdx,
-		Iteration: 1,
+		Iteration: match.TourMatch.Iteration,
 		Cancelled: true,
 	}
 
