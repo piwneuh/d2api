@@ -9,7 +9,7 @@ import (
 	"log"
 )
 
-func getAndSetMatchToRedis(matchIdx string, handlerId uint16) bool {
+func getAndSetMatchToRedis(matchIdx string, handlerId uint16, teamA, teamB []uint64) bool {
 	matchDetails, err := GetMatchRedis(matchIdx)
 	if err != nil {
 		log.Println("Failed to get match:", err)
@@ -17,6 +17,8 @@ func getAndSetMatchToRedis(matchIdx string, handlerId uint16) bool {
 	}
 	matchDetails.Status = "scheduled"
 	matchDetails.HandlerId = handlerId
+	matchDetails.TeamA = teamA
+	matchDetails.TeamB = teamB
 
 	if err = SetMatchRedis(matchIdx, *matchDetails); err != nil {
 		log.Println("Failed to set match:", err)

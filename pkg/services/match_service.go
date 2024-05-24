@@ -103,13 +103,35 @@ func (s *MatchService) GetMatchInfo(matchIdx string) (*response.MatchInfo, error
 	case models.MatchLobby:
 		log.Println("MatchLobby")
 		matchInfo = &response.MatchInfo{Status: match.MatchStatus.Status}
-		for _, player := range match.Lobby.AllMembers {
-			if *player.Team == *protocol.DOTA_GC_TEAM_DOTA_GC_TEAM_GOOD_GUYS.Enum() {
-				matchInfo.RadiantPlayers = append(matchInfo.RadiantPlayers, *player.Id)
-			} else if *player.Team == *protocol.DOTA_GC_TEAM_DOTA_GC_TEAM_BAD_GUYS.Enum() {
-				matchInfo.DirePlayers = append(matchInfo.DirePlayers, *player.Id)
+		for _, player := range match.TeamA {
+			playerInfo := response.Player{SteamId: player, IsInLobby: false, IsInRightTeam: false}
+			for _, player := range match.Lobby.AllMembers {
+				if *player.Id == playerInfo.SteamId {
+					playerInfo.IsInLobby = true
+					if *player.Team == *protocol.DOTA_GC_TEAM_DOTA_GC_TEAM_GOOD_GUYS.Enum() {
+						playerInfo.IsInRightTeam = true
+					}
+					break
+				}
 			}
+
+			matchInfo.RadiantPlayers = append(matchInfo.RadiantPlayers, playerInfo)
 		}
+
+		for _, player := range match.TeamB {
+			playerInfo := response.Player{SteamId: player, IsInLobby: false, IsInRightTeam: false}
+			for _, player := range match.Lobby.AllMembers {
+				if *player.Id == playerInfo.SteamId {
+					playerInfo.IsInLobby = true
+					if *player.Team == *protocol.DOTA_GC_TEAM_DOTA_GC_TEAM_BAD_GUYS.Enum() {
+						playerInfo.IsInRightTeam = true
+					}
+					break
+				}
+			}
+			matchInfo.DirePlayers = append(matchInfo.DirePlayers, playerInfo)
+		}
+
 	case models.MatchData:
 		log.Println("MatchData")
 		matchInfo = &response.MatchInfo{Status: match.MatchStatus.Status}

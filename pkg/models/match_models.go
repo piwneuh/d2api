@@ -11,6 +11,8 @@ type MatchStatus struct {
 	Status            string
 	IsTournamentMatch bool
 	TourMatch         requests.TourMatch
+	TeamA             []uint64
+	TeamB             []uint64
 }
 
 type MatchDetails struct {

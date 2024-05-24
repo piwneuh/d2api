@@ -23,7 +23,7 @@ func MatchScheduleThread(hrs *[]*h.Handler, req requests.CreateMatchReq, matchId
 		return
 	}
 
-	if ok := getAndSetMatchToRedis(matchIdx, handlerId); !ok {
+	if ok := getAndSetMatchToRedis(matchIdx, handlerId, req.TeamA, req.TeamB); !ok {
 		return
 	}
 
