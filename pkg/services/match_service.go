@@ -105,10 +105,10 @@ func (s *MatchService) GetMatchInfo(matchIdx string) (*response.MatchInfo, error
 		matchInfo = &response.MatchInfo{Status: match.MatchStatus.Status}
 		for _, player := range match.TeamA {
 			playerInfo := response.Player{SteamId: player, IsInLobby: false, IsInRightTeam: false}
-			for _, player := range match.Lobby.AllMembers {
-				if *player.Id == playerInfo.SteamId {
+			for _, lobbyPlayer := range match.Lobby.AllMembers {
+				if *lobbyPlayer.Id == playerInfo.SteamId {
 					playerInfo.IsInLobby = true
-					if *player.Team == *protocol.DOTA_GC_TEAM_DOTA_GC_TEAM_GOOD_GUYS.Enum() {
+					if *lobbyPlayer.Team == *protocol.DOTA_GC_TEAM_DOTA_GC_TEAM_GOOD_GUYS.Enum() {
 						playerInfo.IsInRightTeam = true
 					}
 					break
@@ -120,10 +120,10 @@ func (s *MatchService) GetMatchInfo(matchIdx string) (*response.MatchInfo, error
 
 		for _, player := range match.TeamB {
 			playerInfo := response.Player{SteamId: player, IsInLobby: false, IsInRightTeam: false}
-			for _, player := range match.Lobby.AllMembers {
-				if *player.Id == playerInfo.SteamId {
+			for _, lobbyPlayer := range match.Lobby.AllMembers {
+				if *lobbyPlayer.Id == playerInfo.SteamId {
 					playerInfo.IsInLobby = true
-					if *player.Team == *protocol.DOTA_GC_TEAM_DOTA_GC_TEAM_BAD_GUYS.Enum() {
+					if *lobbyPlayer.Team == *protocol.DOTA_GC_TEAM_DOTA_GC_TEAM_BAD_GUYS.Enum() {
 						playerInfo.IsInRightTeam = true
 					}
 					break

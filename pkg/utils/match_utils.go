@@ -39,7 +39,7 @@ func MatchScheduleThread(hrs *[]*h.Handler, req requests.CreateMatchReq, matchId
 
 	channelResponse := joinLobbyChannel(lobby, handler)
 	lobbyExpirationTime := time.Now().Add(time.Duration(timeToCancel) * time.Second)
-
+	i := 0
 	for {
 		time.Sleep(2 * time.Second)
 		lobby, err := GetCurrentLobby(handler)
@@ -58,7 +58,9 @@ func MatchScheduleThread(hrs *[]*h.Handler, req requests.CreateMatchReq, matchId
 			break
 		}
 
-		sendMissingPlayersMessages(handler, channelResponse, missingTeamA, missingTeamB)
+		if i = (i + 1) % 5; i == 1 {
+			sendMissingPlayersMessages(handler, channelResponse, missingTeamA, missingTeamB)
+		}
 
 		if time.Now().After(lobbyExpirationTime) {
 			lobbyExpired(matchIdx, missingTeamA, missingTeamB, handler)
@@ -107,19 +109,21 @@ func startMatch(handler *h.Handler, channelResponse *protocol.CMsgDOTAJoinChatCh
 func sendMissingPlayersMessages(handler *h.Handler, channelResponse *protocol.CMsgDOTAJoinChatChannelResponse, missingTeamA []uint64, missingTeamB []uint64) {
 	handler.DotaClient.SendChannelMessage(*channelResponse.ChannelId, "Waiting for players to join the lobby")
 	if len(missingTeamA) > 0 {
-		missingRadiants := "Missing radiant players: "
+		handler.DotaClient.SendChannelMessage(*channelResponse.ChannelId, "Missing radiant players:")
+		handler.DotaClient.SendChannelMessage(*channelResponse.ChannelId, "-----------------------------")
 		for _, id := range missingTeamA {
-			missingRadiants += strconv.FormatUint(id, 10) + ", "
+			handler.DotaClient.SendChannelMessage(*channelResponse.ChannelId, "| "+strconv.FormatUint(id, 10)+" |")
 		}
-		handler.DotaClient.SendChannelMessage(*channelResponse.ChannelId, missingRadiants[:len(missingRadiants)-2])
+		handler.DotaClient.SendChannelMessage(*channelResponse.ChannelId, "-----------------------------")
 	}
 
 	if len(missingTeamB) > 0 {
-		missingDire := "Missing dire players: "
+		handler.DotaClient.SendChannelMessage(*channelResponse.ChannelId, "Missing dire players:")
+		handler.DotaClient.SendChannelMessage(*channelResponse.ChannelId, "-----------------------------")
 		for _, id := range missingTeamB {
-			missingDire += strconv.FormatUint(id, 10) + ", "
+			handler.DotaClient.SendChannelMessage(*channelResponse.ChannelId, "| "+strconv.FormatUint(id, 10)+" |")
 		}
-		handler.DotaClient.SendChannelMessage(*channelResponse.ChannelId, missingDire[:len(missingDire)-2])
+		handler.DotaClient.SendChannelMessage(*channelResponse.ChannelId, "-----------------------------")
 	}
 }
 
@@ -133,7 +137,6 @@ func lobbyExpired(matchIdx string, missingTeamA []uint64, missingTeamB []uint64,
 	match.Status = "cancelled"
 	match.CancelReason = "reason: players didn't join in time."
 
-	match.CancelReason = match.CancelReason[:len(match.CancelReason)-2]
 	if len(missingTeamA) > 0 && len(missingTeamB) > 0 {
 		match.TeamDidntShow = "both"
 	} else if len(missingTeamA) > 0 {
