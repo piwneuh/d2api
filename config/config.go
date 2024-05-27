@@ -15,8 +15,13 @@ type Config struct {
 	TimeToCancel  uint32
 	Interval      uint32
 	Tournament    TournamentConfig
+	Stats         StatsConfig
 }
 type TournamentConfig struct {
+	URL string
+}
+
+type StatsConfig struct {
 	URL string
 }
 
@@ -71,6 +76,9 @@ func NewConfig() *Config {
 		Interval:      uint32(interval),
 		Tournament: TournamentConfig{
 			URL: readEnvVar("TOURNAMENT_URL"),
+		},
+		Stats: StatsConfig{
+			URL: readEnvVar("STATS_URL"),
 		},
 	}
 }

@@ -3,13 +3,12 @@ package utils
 import (
 	"bytes"
 	"crypto/tls"
-	"d2api/pkg/response"
 	"encoding/json"
 	"log"
 	"net/http"
 )
 
-func SendMatchResultToTournament(endpoint string, match *response.TournamentEndRequest) bool {
+func SendMatchResult(endpoint string, match interface{}) bool {
 	jsonData, err := json.Marshal(match)
 	if err != nil {
 		log.Println("Error marshalling data: ", err)

@@ -15,9 +15,9 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func safeSending(data *response.TournamentEndRequest, repeatTimes int) {
+func safeSending(data interface{}, repeatTimes int, endpoint string) {
 	for i := 0; i < repeatTimes; i++ {
-		if utils.SendMatchResultToTournament(tournamentEndpoint, data) {
+		if utils.SendMatchResult(endpoint, data) {
 			log.Println("Match result sent to tournament")
 			return
 		}
@@ -51,7 +51,7 @@ func sendMatchFinished(match *models.MatchData) {
 		resp.Loser = radiant
 	}
 
-	safeSending(&resp, 5)
+	safeSending(resp, 5, tournamentEndpoint)
 }
 
 func matchFinished(match *models.MatchData) {
@@ -78,6 +78,10 @@ func matchFinished(match *models.MatchData) {
 				log.Println("Failed to update player: ", err)
 			}
 		}(playerId, matchId)
+	}
+
+	if statsEndpoint != "" {
+		safeSending(*match, 5, statsEndpoint)
 	}
 }
 
@@ -114,7 +118,7 @@ func sendMatchCancelled(match *models.MatchCancel) {
 		resp.Loser = dire
 	}
 
-	safeSending(&resp, 5)
+	safeSending(resp, 5, tournamentEndpoint)
 }
 
 func matchCancelled(match *models.MatchCancel) {
@@ -129,7 +133,6 @@ func crawlMatches() {
 	for _, matchIdx := range scheduled_matches.Get() {
 		match, err := wires.Instance.MatchService.GetMatch(matchIdx)
 		if err != nil {
-			log.Println("Failed to get match: ", err)
 			continue
 		}
 
@@ -153,11 +156,12 @@ func crawlMatches() {
 	}
 }
 
-var tournamentEndpoint string
+var tournamentEndpoint, statsEndpoint string
 
 func Init(config *config.Config) bool {
 	ticker := time.NewTicker(time.Duration(config.Interval) * time.Second)
 	tournamentEndpoint = config.Tournament.URL + "/tournaments/move-teams-to-next-round"
+	statsEndpoint = config.Stats.URL
 	quit := make(chan struct{})
 	scheduled_matches.Init()
 	go func() bool {

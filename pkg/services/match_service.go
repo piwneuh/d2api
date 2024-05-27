@@ -66,7 +66,6 @@ func (s *MatchService) GetMatch(matchIdx string) (interface{}, error) {
 	} else if match.Status == "scheduled" {
 		lobby, err := utils.GetCurrentLobby(handler)
 		if err != nil {
-			log.Println("Failed to get lobby: ", err)
 			return nil, err
 		}
 		return models.MatchLobby{MatchStatus: match.MatchStatus, Lobby: lobby}, nil
