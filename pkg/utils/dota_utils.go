@@ -1,11 +1,15 @@
 package utils
 
 import (
+	"d2api/config"
 	h "d2api/pkg/handlers"
 	"d2api/pkg/requests"
+	"encoding/json"
 	"errors"
 	"log"
+	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/paralin/go-dota2/cso"
@@ -75,4 +79,54 @@ func GetCurrentLobby(handler *h.Handler) (*protocol.CSODOTALobby, error) {
 	}
 
 	return lobbyMessage.(*protocol.CSODOTALobby), nil
+}
+
+func getSteamUsernamesFromSteamIds(steamIds []uint64) map[uint64]string {
+	steamApi := &config.GlobalConfig.SteamWebApi
+	var steamIdsStr string
+	for _, id := range steamIds {
+		steamIdsStr = steamIdsStr + strconv.FormatUint(id, 10) + ","
+	}
+	steamIdsStr = strings.TrimSuffix(steamIdsStr, ",")
+
+	var steamUsernamesResponse struct {
+		Response struct {
+			Players []struct {
+				PersonaName string `json:"personaname"`
+				SteamId     string `json:"steamid"`
+			}
+		} `json:"response"`
+	}
+
+	var steamUsernames = make(map[uint64]string)
+
+	resp, err := http.Get(steamApi.URL + "key=" + steamApi.Key + "&steamids=" + steamIdsStr)
+	if err != nil {
+		log.Println("Failed to get steam usernames:", err)
+		return steamUsernames
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		log.Println("Failed to get steam usernames: status code", resp.StatusCode)
+		return steamUsernames
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&steamUsernamesResponse)
+	if err != nil {
+		log.Println("Failed to get steam usernames:", err)
+		return steamUsernames
+	}
+
+	for _, player := range steamUsernamesResponse.Response.Players {
+		steamId, err := strconv.ParseUint(player.SteamId, 10, 64)
+		if err != nil {
+			log.Println("Failed to parse steam id:", err)
+			continue
+		}
+
+		steamUsernames[steamId] = player.PersonaName
+	}
+
+	return steamUsernames
 }

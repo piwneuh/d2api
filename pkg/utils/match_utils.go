@@ -38,6 +38,8 @@ func MatchScheduleThread(hrs *[]*h.Handler, req requests.CreateMatchReq, matchId
 	inviteTeams(req, handler)
 
 	channelResponse := joinLobbyChannel(lobby, handler)
+	steamIdsUsernames := getSteamUsernamesFromSteamIds(append(req.TeamA, req.TeamB...))
+
 	lobbyExpirationTime := time.Now().Add(time.Duration(timeToCancel) * time.Second)
 	i := 0
 	for {
@@ -59,7 +61,7 @@ func MatchScheduleThread(hrs *[]*h.Handler, req requests.CreateMatchReq, matchId
 		}
 
 		if i = (i + 1) % 5; i == 1 {
-			sendMissingPlayersMessages(handler, channelResponse, missingTeamA, missingTeamB)
+			sendMissingPlayersMessages(handler, channelResponse, missingTeamA, missingTeamB, steamIdsUsernames)
 		}
 
 		if time.Now().After(lobbyExpirationTime) {
@@ -106,24 +108,29 @@ func startMatch(handler *h.Handler, channelResponse *protocol.CMsgDOTAJoinChatCh
 	handler.Occupied = false
 }
 
-func sendMissingPlayersMessages(handler *h.Handler, channelResponse *protocol.CMsgDOTAJoinChatChannelResponse, missingTeamA []uint64, missingTeamB []uint64) {
+func sendMissingPlayersMessages(handler *h.Handler, channelResponse *protocol.CMsgDOTAJoinChatChannelResponse, missingTeamA []uint64, missingTeamB []uint64, steamIdsUsernames map[uint64]string) {
 	handler.DotaClient.SendChannelMessage(*channelResponse.ChannelId, "Waiting for players to join the lobby")
-	if len(missingTeamA) > 0 {
-		handler.DotaClient.SendChannelMessage(*channelResponse.ChannelId, "Missing radiant players:")
+	sendMissingTeamMessage := func(handler *h.Handler, channelResponse *protocol.CMsgDOTAJoinChatChannelResponse, missingTeamA []uint64, steamIdsUsernames map[uint64]string, team string) {
+		handler.DotaClient.SendChannelMessage(*channelResponse.ChannelId, "Missing "+team+" players:")
 		handler.DotaClient.SendChannelMessage(*channelResponse.ChannelId, "-----------------------------")
 		for _, id := range missingTeamA {
-			handler.DotaClient.SendChannelMessage(*channelResponse.ChannelId, "| "+strconv.FormatUint(id, 10)+" |")
+			var username string
+			if val, ok := steamIdsUsernames[id]; ok {
+				username = val
+			} else {
+				username = strconv.FormatUint(id, 10)
+			}
+			handler.DotaClient.SendChannelMessage(*channelResponse.ChannelId, "| "+username+" |")
 		}
 		handler.DotaClient.SendChannelMessage(*channelResponse.ChannelId, "-----------------------------")
 	}
 
+	if len(missingTeamA) > 0 {
+		sendMissingTeamMessage(handler, channelResponse, missingTeamA, steamIdsUsernames, "radiant")
+	}
+
 	if len(missingTeamB) > 0 {
-		handler.DotaClient.SendChannelMessage(*channelResponse.ChannelId, "Missing dire players:")
-		handler.DotaClient.SendChannelMessage(*channelResponse.ChannelId, "-----------------------------")
-		for _, id := range missingTeamB {
-			handler.DotaClient.SendChannelMessage(*channelResponse.ChannelId, "| "+strconv.FormatUint(id, 10)+" |")
-		}
-		handler.DotaClient.SendChannelMessage(*channelResponse.ChannelId, "-----------------------------")
+		sendMissingTeamMessage(handler, channelResponse, missingTeamB, steamIdsUsernames, "dire")
 	}
 }
 

@@ -18,11 +18,11 @@ import (
 func safeSending(data interface{}, repeatTimes int, endpoint string) {
 	for i := 0; i < repeatTimes; i++ {
 		if utils.SendMatchResult(endpoint, data) {
-			log.Println("Match result sent to tournament")
+			log.Println("Match result sent to " + endpoint)
 			return
 		}
 	}
-	log.Println("Failed to send match result to tournament")
+	log.Println("Failed to send match result to " + endpoint)
 }
 
 func sendMatchFinished(match *models.MatchData) {
