@@ -3,8 +3,10 @@ package utils
 import (
 	"context"
 	h "d2api/pkg/handlers"
+	"d2api/pkg/models"
 	"d2api/pkg/requests"
 	"errors"
+	"fmt"
 	"log"
 	"strconv"
 	"time"
@@ -78,6 +80,8 @@ func startMatch(handler *h.Handler, channelResponse *protocol.CMsgDOTAJoinChatCh
 	time.Sleep(2 * time.Second)
 
 	handler.DotaClient.LaunchLobby()
+
+	var match *models.MatchDetails
 	for {
 		time.Sleep(2 * time.Second)
 		lobby, err := GetCurrentLobby(handler)
@@ -89,7 +93,7 @@ func startMatch(handler *h.Handler, channelResponse *protocol.CMsgDOTAJoinChatCh
 			continue
 		}
 
-		match, err := GetMatchRedis(matchIdx)
+		match, err = GetMatchRedis(matchIdx)
 		if err != nil {
 			log.Println("Failed to get match:", err)
 		}
@@ -104,6 +108,26 @@ func startMatch(handler *h.Handler, channelResponse *protocol.CMsgDOTAJoinChatCh
 		break
 	}
 
+	metadata := make(map[string]string)
+	metadata["match_id"] = strconv.Itoa(match.TourMatch.MatchIdx)
+	metadata["team1_clan_id"] = strconv.Itoa(match.TourMatch.Team1Id)
+	metadata["team2_clan_id"] = strconv.Itoa(match.TourMatch.Team2Id)
+	metadata["team1_name"] = match.TourMatch.Team1.Name
+	metadata["team2_name"] = match.TourMatch.Team2.Name
+	metadata["team1_image"] = match.TourMatch.Team1.Logo
+	metadata["team2_image"] = match.TourMatch.Team2.Logo
+	metadata["tournament_name"] = match.TourMatch.TournamentName
+	metadata["tournament_logo"] = match.TourMatch.TournamentLogo
+	metadata["tournament_creator_steamId"] = match.TourMatch.TournamentOwnerId
+
+	var playerIds []string
+	for _, player := range match.TourMatch.Players {
+		playerIds = append(playerIds, player.SteamId)
+	}
+	if match.IsTournamentMatch {
+		message := fmt.Sprintf("Match starting: %s vs %s", match.TourMatch.Team1.Name, match.TourMatch.Team2.Name)
+		SendNotification(int64(match.TourMatch.TournamentId), append(playerIds, match.TourMatch.TournamentOwnerId), message, "tournament", "MATCH_STARTING", metadata)
+	}
 	handler.DotaClient.AbandonLobby()
 	handler.Occupied = false
 }
