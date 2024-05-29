@@ -67,7 +67,40 @@ func MatchScheduleThread(hrs *[]*h.Handler, req requests.CreateMatchReq, matchId
 		}
 
 		if time.Now().After(lobbyExpirationTime) {
+			match, err := GetMatchRedis(matchIdx)
+			if err != nil {
+				log.Println("Failed to get match:", err)
+			}
+
+			var players []string
+			for _, player := range match.TourMatch.Players {
+				players = append(players, player.SteamId)
+			}
+			players = append(players, match.TourMatch.TournamentOwnerId)
+
+			metadata := make(map[string]string)
+			metadata["match_id"] = strconv.Itoa(match.TourMatch.MatchIdx)
+			metadata["team1_clan_id"] = strconv.Itoa(match.TourMatch.Team1Id)
+			metadata["team1_clan_id"] = strconv.Itoa(match.TourMatch.Team2Id)
+			metadata["tournament_name"] = match.TourMatch.TournamentName
+			metadata["tournament_logo"] = match.TourMatch.TournamentLogo
+
+			if len(missingTeamA) > 0 && len(missingTeamB) > 0 {
+				metadata["abandoning_team1_name"] = match.TourMatch.Team1.Name
+				metadata["abandoning_team1_id"] = strconv.Itoa(match.TourMatch.Team1Id)
+				metadata["abandoning_team2_name"] = match.TourMatch.Team2.Name
+				metadata["abandoning_team2_id"] = strconv.Itoa(match.TourMatch.Team2Id)
+			} else if len(missingTeamA) > 0 {
+				metadata["abandoning_team_name"] = match.TourMatch.Team1.Name
+				metadata["abandoning_team_id"] = strconv.Itoa(match.TourMatch.Team1Id)
+			} else if len(missingTeamB) > 0 {
+				metadata["abandoning_team_name"] = match.TourMatch.Team2.Name
+				metadata["abandoning_team_id"] = strconv.Itoa(match.TourMatch.Team2Id)
+			}
+
 			lobbyExpired(matchIdx, missingTeamA, missingTeamB, handler)
+			message := fmt.Sprintf("Match Abandoned: %s vs %s", match.TourMatch.Team1.Name, match.TourMatch.Team2.Name)
+			SendNotification(int64(match.TourMatch.TournamentId), players, message, "tournament", "MATCH_ABANDONED", metadata)
 			return
 		}
 	}
