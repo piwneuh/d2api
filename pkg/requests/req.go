@@ -19,21 +19,29 @@ type LobbyConfig struct {
 }
 
 type TourMatch struct {
-	MatchIdx          int                   `json:"matchIdx"`
-	Region            string                `json:"region"`
-	TournamentId      int                   `json:"tournamentId"`
-	TournamentOwnerId string                `json:"tournamentOwnerId"`
-	TournamentName    string                `json:"tournamentName"`
-	TournamentLogo    string                `json:"tournamentLogo"`
-	Team1Id           int                   `json:"team1Id"`
-	Team2Id           int                   `json:"team2Id"`
-	Team1             TeamForMiddleware     `json:"team1"`
-	Team2             TeamForMiddleware     `json:"team2"`
-	Players           []PlayerForMiddleware `json:"players"`
-	StartEpoch        int64                 `json:"startEpoch"`
-	NumberOfRounds    int                   `json:"numberOfRounds"`
-	Cancelled         bool                  `json:"cancelled"`
-	Iteration         int                   `json:"iteration"`
+	Region                 string                `json:"region"`
+	MatchDB                string                `json:"matchDb"`
+	MatchId                int                   `json:"matchId"`
+	MatchIdx               int                   `json:"matchIdx"`
+	TournamentId           int                   `json:"tournamentId"`
+	TournamentName         string                `json:"tournamentName"`
+	TournamentLogo         string                `json:"tournamentLogo"`
+	TournamentOwnerId      string                `json:"tournamentOwnerId"`
+	EstimatedTournamentEnd int64                 `json:"estimatedTournamentEnd"`
+	Team1Id                int                   `json:"team1Id"`
+	Team2Id                int                   `json:"team2Id"`
+	Map                    string                `json:"map"`
+	Team1                  TeamForMiddleware     `json:"team1"`
+	Team2                  TeamForMiddleware     `json:"team2"`
+	Players                []PlayerForMiddleware `json:"players"`
+	Currency               string                `json:"currency"`
+	DeadlineEpoch          int64                 `json:"deadlineEpoch"`
+	StartEpoch             int64                 `json:"startEpoch"`
+	NumberOfRounds         int                   `json:"numberOfRounds"`
+	Prize                  int                   `json:"prize"`
+	RoundTime              int                   `json:"roundTime"`
+	Cancelled              bool                  `json:"cancelled"`
+	Iteration              int                   `json:"iteration"`
 }
 
 type TeamForMiddleware struct {
