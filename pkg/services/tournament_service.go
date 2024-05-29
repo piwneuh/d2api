@@ -10,6 +10,7 @@ import (
 	"d2api/pkg/scheduled_matches"
 	"d2api/pkg/utils"
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 )
@@ -35,6 +36,8 @@ func (t *TournamentService) ScheduleRound(round []requests.TourMatch) ([]respons
 			winner := -1
 			loser := -1
 			score := -1
+
+			var playerIds []string
 
 			if match.Team1Id != -1 {
 				winner = match.Team1Id
@@ -62,6 +65,17 @@ func (t *TournamentService) ScheduleRound(round []requests.TourMatch) ([]respons
 					Score:  -1,
 				},
 			}
+
+			playerIds = append(playerIds, match.TournamentOwnerId)
+
+			metadata := make(map[string]string)
+			metadata["match_id"] = strconv.Itoa(match.MatchIdx)
+			metadata["team1_clan_id"] = strconv.Itoa(match.Team1Id)
+			metadata["team2_clan_id"] = strconv.Itoa(match.Team2Id)
+			metadata["tournament_name"] = match.TournamentName
+			metadata["tournament_image"] = match.TournamentLogo
+			utils.SendNotification(int64(match.TournamentId), playerIds, fmt.Sprintf("Match Cancelled: %s vs %s", match.Team1.Name, match.Team2.Name), "tournament", "MATCH_CANCELLED", metadata)
+
 			cancelled = append(cancelled, moveTeams)
 		} else {
 			matchIdx := strconv.Itoa(match.MatchIdx)

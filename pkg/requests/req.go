@@ -23,6 +23,8 @@ type TourMatch struct {
 	Region            string                `json:"region"`
 	TournamentId      int                   `json:"tournamentId"`
 	TournamentOwnerId string                `json:"tournamentOwnerId"`
+	TournamentName    string                `json:"tournamentName"`
+	TournamentLogo    string                `json:"tournamentLogo"`
 	Team1Id           int                   `json:"team1Id"`
 	Team2Id           int                   `json:"team2Id"`
 	Team1             TeamForMiddleware     `json:"team1"`
@@ -36,6 +38,7 @@ type TourMatch struct {
 
 type TeamForMiddleware struct {
 	Name string `json:"name"`
+	Logo string `json:"logo"`
 }
 
 type PlayerForMiddleware struct {
@@ -51,4 +54,18 @@ type ScheduleMatchRequest struct {
 type ReinvitePlayersReq struct {
 	MatchIdx int      `json:"matchIdx"`
 	Players  []uint64 `json:"players"`
+}
+
+type Notification struct {
+	Content  string   `json:"content"`
+	Metadata Metadata `json:"metadata"`
+	UserIds  []string `json:"user_ids"`
+	Type     string   `json:"type"`
+	Subtype  string   `json:"subtype"`
+	RefId    string   `json:"ref_id"`
+	Service  string   `json:"service"`
+}
+
+type Metadata struct {
+	Ids map[string]string `json:"ids"`
 }
