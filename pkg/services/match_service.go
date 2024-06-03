@@ -24,16 +24,14 @@ import (
 )
 
 type MatchService struct {
-	Handlers []*handlers.Handler
-	Config   *config.Config
-	Repo     *repository.Repository
+	Config *config.Config
+	Repo   *repository.Repository
 }
 
-func NewMatchService(handlers []*handlers.Handler, config *config.Config, repo *repository.Repository) MatchService {
+func NewMatchService(config *config.Config, repo *repository.Repository) MatchService {
 	return MatchService{
-		Handlers: handlers,
-		Config:   config,
-		Repo:     repo,
+		Config: config,
+		Repo:   repo,
 	}
 }
 
@@ -46,7 +44,7 @@ func (s *MatchService) ScheduleMatch(req requests.CreateMatchReq) (string, error
 
 	scheduled_matches.Add(matchIdx)
 
-	go utils.MatchScheduleThread(&s.Handlers, req, matchIdx, s.Config.TimeToCancel)
+	go utils.MatchScheduleThread(req, matchIdx, s.Config.TimeToCancel)
 	return matchIdx, nil
 }
 
@@ -56,7 +54,7 @@ func (s *MatchService) GetMatch(matchIdx string) (interface{}, error) {
 		return nil, err
 	}
 
-	handler, _, err := handlers.GetFirstHandler(s.Handlers)
+	handler, _, err := handlers.Hs.GetFirstHandler()
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +173,7 @@ func (s *MatchService) GetPlayerHistory(steamId int64, limit int) (interface{}, 
 		matchIds = playerModel.Matches[:limit]
 	}
 
-	handler, _, err := handlers.GetFirstHandler(s.Handlers)
+	handler, _, err := handlers.Hs.GetFirstHandler()
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +197,7 @@ func (s *MatchService) ReinvitePlayers(req requests.ReinvitePlayersReq) error {
 		return err
 	}
 
-	handler := s.Handlers[match.HandlerId]
+	handler := handlers.Hs.Handlers[match.HandlerId]
 	for _, player := range req.Players {
 		handler.DotaClient.InviteLobbyMember(steamid.SteamId(player))
 	}

@@ -2,7 +2,6 @@ package services
 
 import (
 	"d2api/config"
-	"d2api/pkg/handlers"
 	"d2api/pkg/models"
 	"d2api/pkg/repository"
 	"d2api/pkg/requests"
@@ -16,16 +15,14 @@ import (
 )
 
 type TournamentService struct {
-	Handlers []*handlers.Handler
-	Config   *config.Config
-	Repo     *repository.Repository
+	Config *config.Config
+	Repo   *repository.Repository
 }
 
-func NewTournamentService(handlers []*handlers.Handler, config *config.Config, repository *repository.Repository) TournamentService {
+func NewTournamentService(config *config.Config, repository *repository.Repository) TournamentService {
 	return TournamentService{
-		Handlers: handlers,
-		Config:   config,
-		Repo:     repository,
+		Config: config,
+		Repo:   repository,
 	}
 }
 
@@ -93,7 +90,7 @@ func (t *TournamentService) ScheduleRound(round []requests.TourMatch) ([]respons
 				return make([]response.TournamentEndRequest, 0), nil
 			}
 
-			go utils.MatchScheduleThread(&t.Handlers, *req, matchIdx, t.Config.TimeToCancel)
+			go utils.MatchScheduleThread(*req, matchIdx, t.Config.TimeToCancel)
 		}
 	}
 

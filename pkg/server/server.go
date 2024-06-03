@@ -4,6 +4,7 @@ import (
 	"context"
 	"d2api/config"
 	"d2api/pkg/crawler"
+	"d2api/pkg/handlers"
 	"d2api/pkg/mongodb"
 	"d2api/pkg/redis"
 	"d2api/pkg/server/api"
@@ -33,6 +34,7 @@ func (s *Server) Start() {
 	mongodb.Init(&s.config.Mongo)
 	redis.Init(s.config, context.Background())
 	wires.Init(s.config)
+	handlers.LoadHandlers(s.config.InventoryPath)
 	crawler.Init(s.config)
 	api.RegisterVersion(r, context.Background())
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"math/rand"
 	"os"
 	"sync"
 	"time"
@@ -24,18 +25,84 @@ type Handler struct {
 	DotaClient  *dota2.Dota2
 	SteamConfig
 	Occupied bool
+	Broken   bool
 }
 
-var mutex = &sync.Mutex{}
+type Handlers struct {
+	Handlers []*Handler
+	Mutex    *sync.Mutex
+}
+
+var Hs *Handlers
+
+func LoadHandlers(inventoryPath string) {
+
+	handlers, err := loadHandlers(inventoryPath)
+	if err != nil {
+		panic(err)
+	}
+	Hs = &Handlers{
+		Mutex:    &sync.Mutex{},
+		Handlers: handlers,
+	}
+}
+
+func (hs *Handlers) GetFreeHandler() (*Handler, uint16, error) {
+	hs.Mutex.Lock()
+	defer hs.Mutex.Unlock()
+	checkedIds := make(map[int]bool, 0)
+	for i := 0; i < len(hs.Handlers); i++ {
+		var num int
+		for {
+			num = rand.Intn(len(hs.Handlers))
+			if checked, ok := checkedIds[num]; !ok || !checked {
+				break
+			}
+		}
+
+		checkedIds[num] = true
+		handler := hs.Handlers[num]
+		if !handler.Occupied && !handler.Broken {
+			handler.Occupied = true
+			if handler.SteamClient == nil || handler.DotaClient == nil {
+				go func() {
+					handler.InitSteamConnection()
+				}()
+				time.Sleep(2 * time.Second)
+			}
+			return handler, uint16(i), nil
+		}
+	}
+
+	return nil, 0, errors.New("no available bot")
+}
+
+func (hs *Handlers) GetFirstHandler() (*Handler, uint16, error) {
+	if len(hs.Handlers) == 0 {
+		return nil, 0, errors.New("no available bot")
+	}
+
+	handler := hs.Handlers[rand.Intn(len(hs.Handlers))]
+	if handler.SteamClient == nil || handler.DotaClient == nil {
+		hs.Mutex.Lock()
+		defer hs.Mutex.Unlock()
+		go func() {
+			handler.InitSteamConnection()
+		}()
+		time.Sleep(2 * time.Second)
+	}
+	return handler, 0, nil
+}
 
 func NewHandler(steamConfig SteamConfig) *Handler {
 	return &Handler{
 		SteamConfig: steamConfig,
 		Occupied:    false,
+		Broken:      false,
 	}
 }
 
-func LoadHandlers(inventoryPath string) ([]*Handler, error) {
+func loadHandlers(inventoryPath string) ([]*Handler, error) {
 	text, err := os.ReadFile("./" + inventoryPath)
 	if err != nil {
 		log.Fatalln("could not read inventory file")
@@ -107,38 +174,4 @@ func (h *Handler) InitSteamConnection() {
 			log.Println("Fatal error occurred: ", e.Error())
 		}
 	}
-}
-
-func GetFreeHandler(handlers []*Handler) (*Handler, uint16, error) {
-	mutex.Lock()
-	defer mutex.Unlock()
-	for i, handler := range handlers {
-		if !handler.Occupied {
-			handler.Occupied = true
-			if handler.SteamClient == nil || handler.DotaClient == nil {
-				go func() {
-					handler.InitSteamConnection()
-				}()
-				time.Sleep(2 * time.Second)
-			}
-			return handler, uint16(i), nil
-		}
-	}
-
-	return nil, 0, errors.New("no available bot")
-}
-
-func GetFirstHandler(handlers []*Handler) (*Handler, uint16, error) {
-	if len(handlers) == 0 {
-		return nil, 0, errors.New("no available bot")
-	}
-
-	handler := handlers[0]
-	if handler.SteamClient == nil || handler.DotaClient == nil {
-		go func() {
-			handler.InitSteamConnection()
-		}()
-		time.Sleep(3 * time.Second)
-	}
-	return handler, 0, nil
 }

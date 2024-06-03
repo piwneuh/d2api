@@ -17,9 +17,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func MatchScheduleThread(hrs *[]*h.Handler, req requests.CreateMatchReq, matchIdx string, timeToCancel uint32) {
+func MatchScheduleThread(req requests.CreateMatchReq, matchIdx string, timeToCancel uint32) {
 	waitForTimeToStart(req)
-	handler, handlerId, err := getHandler(hrs)
+	handler, handlerId, err := getHandler()
 	if err != nil {
 		log.Println("Failed to get handler:", err)
 		return
@@ -243,8 +243,10 @@ func createLobby(handler *h.Handler, req requests.CreateMatchReq) (*protocol.CSO
 	time.Sleep(1 * time.Second)
 	if res, err := handler.DotaClient.DestroyLobby(context.Background()); err != nil {
 		log.Println("Failed to destroy lobby: ", err, res)
+		handler.Broken = true
 		return nil, err
 	}
+
 	time.Sleep(2 * time.Second)
 
 	lobbyVisibility := protocol.DOTALobbyVisibility_DOTALobbyVisibility_Public
@@ -271,9 +273,9 @@ func createLobby(handler *h.Handler, req requests.CreateMatchReq) (*protocol.CSO
 	return nil, errors.New("failed to create lobby")
 }
 
-func getHandler(hrs *[]*h.Handler) (*h.Handler, uint16, error) {
+func getHandler() (*h.Handler, uint16, error) {
 	for i := 0; i < 15; i++ {
-		handler, handlerId, err := h.GetFreeHandler(*hrs)
+		handler, handlerId, err := h.Hs.GetFreeHandler()
 		if err != nil {
 			time.Sleep(5 * time.Second)
 			log.Println("No available bot, retrying in 5 seconds", err)
