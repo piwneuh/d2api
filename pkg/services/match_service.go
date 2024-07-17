@@ -54,7 +54,7 @@ func (s *MatchService) GetMatch(matchIdx string) (interface{}, error) {
 		return nil, err
 	}
 
-	handler, _, err := handlers.Hs.GetFirstHandler()
+	handler, err := handlers.Hs.GetMatchHandler(match.Handler)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func (s *MatchService) GetPlayerHistory(steamId int64, limit int) (interface{}, 
 		matchIds = playerModel.Matches[:limit]
 	}
 
-	handler, _, err := handlers.Hs.GetFirstHandler()
+	handler, err := handlers.Hs.GetFirstHandler()
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +197,11 @@ func (s *MatchService) ReinvitePlayers(req requests.ReinvitePlayersReq) error {
 		return err
 	}
 
-	handler := handlers.Hs.Handlers[match.HandlerId]
+	handler, err := handlers.Hs.GetMatchHandler(match.Handler)
+	if err != nil {
+		return err
+	}
+
 	for _, player := range req.Players {
 		handler.DotaClient.InviteLobbyMember(steamid.SteamId(player))
 	}

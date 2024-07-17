@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"d2api/pkg/handlers"
 	m "d2api/pkg/models"
 	"d2api/pkg/redis"
 	"encoding/json"
@@ -9,14 +10,14 @@ import (
 	"log"
 )
 
-func getAndSetMatchToRedis(matchIdx string, handlerId uint16, teamA, teamB []uint64) bool {
+func getAndSetMatchToRedis(matchIdx string, handler *handlers.Handler, teamA, teamB []uint64) bool {
 	matchDetails, err := GetMatchRedis(matchIdx)
 	if err != nil {
 		log.Println("Failed to get match:", err)
 		return false
 	}
 	matchDetails.Status = "scheduled"
-	matchDetails.HandlerId = handlerId
+	matchDetails.Handler = handler.Username
 	matchDetails.TeamA = teamA
 	matchDetails.TeamB = teamB
 

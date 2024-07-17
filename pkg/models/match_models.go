@@ -17,7 +17,7 @@ type MatchStatus struct {
 
 type MatchDetails struct {
 	MatchStatus
-	HandlerId     uint16
+	Handler       string
 	CancelReason  string
 	TeamDidntShow string
 }

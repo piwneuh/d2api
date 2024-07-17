@@ -59,13 +59,19 @@ func (hs *Handlers) GetMatchHandler(username string) (*Handler, error) {
 	defer hs.Mutex.Unlock()
 	for _, handler := range hs.Handlers {
 		if handler.Username == username {
+			if handler.SteamClient == nil || handler.DotaClient == nil {
+				go func() {
+					handler.InitSteamConnection()
+				}()
+				time.Sleep(3 * time.Second)
+			}
 			return handler, nil
 		}
 	}
 	return nil, errors.New("no bot with that username")
 }
 
-func (hs *Handlers) GetFreeHandler() (*Handler, uint16, error) {
+func (hs *Handlers) GetFreeHandler() (*Handler, error) {
 	hs.Mutex.Lock()
 	defer hs.Mutex.Unlock()
 	checkedIds := make(map[int]bool, 0)
@@ -88,16 +94,16 @@ func (hs *Handlers) GetFreeHandler() (*Handler, uint16, error) {
 				}()
 				time.Sleep(2 * time.Second)
 			}
-			return handler, uint16(i), nil
+			return handler, nil
 		}
 	}
 
-	return nil, 0, errors.New("no available bot")
+	return nil, errors.New("no available bot")
 }
 
-func (hs *Handlers) GetFirstHandler() (*Handler, uint16, error) {
+func (hs *Handlers) GetFirstHandler() (*Handler, error) {
 	if len(hs.Handlers) == 0 {
-		return nil, 0, errors.New("no available bot")
+		return nil, errors.New("no available bot")
 	}
 
 	handler := hs.Handlers[rand.Intn(len(hs.Handlers))]
@@ -109,7 +115,7 @@ func (hs *Handlers) GetFirstHandler() (*Handler, uint16, error) {
 		}()
 		time.Sleep(3 * time.Second)
 	}
-	return handler, 0, nil
+	return handler, nil
 }
 
 func NewHandler(steamConfig SteamConfig) *Handler {
