@@ -19,6 +19,6 @@ func Init(config *config.Config, ctx context.Context) {
 
 	_, err := RedisClient.Ping(ctx).Result()
 	if err != nil {
-		log.Println("Could not connect to Redis: %s", err)
+		log.Println("Could not connect to Redis: ", err)
 	}
 }

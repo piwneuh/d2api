@@ -33,10 +33,17 @@ type Handlers struct {
 	Mutex    *sync.Mutex
 }
 
+type ListHander struct {
+	Id       int    `json:"id"`
+	SignedIn bool   `json:"signed_in"`
+	Username string `json:"username"`
+	Occupied bool   `json:"occupied"`
+	Broken   bool   `json:"broken"`
+}
+
 var Hs *Handlers
 
 func LoadHandlers(inventoryPath string) {
-
 	handlers, err := loadHandlers(inventoryPath)
 	if err != nil {
 		panic(err)
@@ -45,6 +52,17 @@ func LoadHandlers(inventoryPath string) {
 		Mutex:    &sync.Mutex{},
 		Handlers: handlers,
 	}
+}
+
+func (hs *Handlers) GetMatchHandler(username string) (*Handler, error) {
+	hs.Mutex.Lock()
+	defer hs.Mutex.Unlock()
+	for _, handler := range hs.Handlers {
+		if handler.Username == username {
+			return handler, nil
+		}
+	}
+	return nil, errors.New("no bot with that username")
 }
 
 func (hs *Handlers) GetFreeHandler() (*Handler, uint16, error) {
@@ -89,7 +107,7 @@ func (hs *Handlers) GetFirstHandler() (*Handler, uint16, error) {
 		go func() {
 			handler.InitSteamConnection()
 		}()
-		time.Sleep(2 * time.Second)
+		time.Sleep(3 * time.Second)
 	}
 	return handler, 0, nil
 }
@@ -174,4 +192,34 @@ func (h *Handler) InitSteamConnection() {
 			log.Println("Fatal error occurred: ", e.Error())
 		}
 	}
+}
+
+func (hs *Handlers) GetAllBots() []*ListHander {
+	hs.Mutex.Lock()
+	defer hs.Mutex.Unlock()
+	bots := make([]*ListHander, 0)
+	for i, handler := range hs.Handlers {
+		bots = append(bots, &ListHander{
+			Id:       i,
+			SignedIn: handler.SteamClient != nil && handler.DotaClient != nil,
+			Username: handler.Username,
+			Occupied: handler.Occupied,
+			Broken:   handler.Broken,
+		})
+	}
+	return bots
+}
+
+func (hs *Handlers) LeaveLobby(botId uint16) error {
+	hs.Mutex.Lock()
+	defer hs.Mutex.Unlock()
+	if botId >= uint16(len(hs.Handlers)) {
+		return errors.New("botId out of range")
+	}
+	hs.Handlers[botId].DotaClient.LeaveLobby()
+	time.Sleep(1 * time.Second)
+
+	hs.Handlers[botId].Occupied = false
+	hs.Handlers[botId].Broken = false
+	return nil
 }
