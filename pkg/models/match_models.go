@@ -37,3 +37,8 @@ type MatchData struct {
 	MatchStatus
 	Match *protocol.CMsgDOTAMatch
 }
+
+type MatchMongo struct {
+	Id    string                  `bson:"_id" json:"id"`
+	Match *protocol.CMsgDOTAMatch `bson:"match" json:"match"`
+}

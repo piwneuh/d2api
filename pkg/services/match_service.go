@@ -51,7 +51,13 @@ func (s *MatchService) ScheduleMatch(req requests.CreateMatchReq) (string, error
 func (s *MatchService) GetMatch(matchIdx string) (interface{}, error) {
 	match, err := utils.GetMatchRedis(matchIdx)
 	if err != nil {
-		return nil, err
+		var match models.MatchMongo
+		err := s.Repo.Get("matches", bson.M{"_id": matchIdx}).Decode(&match)
+		if err != nil {
+			return nil, err
+		}
+
+		return match, nil
 	}
 
 	handler, err := handlers.Hs.GetMatchHandler(match.Handler)
@@ -138,6 +144,9 @@ func (s *MatchService) GetMatchInfo(matchIdx string) (*response.MatchInfo, error
 	case models.MatchDetails:
 		log.Println("MatchDetails")
 		matchInfo = &response.MatchInfo{Status: match.MatchStatus.Status}
+	case models.MatchMongo:
+		log.Println("MatchMongo")
+		matchInfo = &response.MatchInfo{Status: "finished"}
 	default:
 		return nil, errors.New("unknown match type")
 	}
@@ -166,26 +175,34 @@ func (s *MatchService) GetPlayerHistory(steamId int64, limit int) (interface{}, 
 		return nil, err
 	}
 
-	var matchIds []uint64
+	var matchIds []string
 	if len(playerModel.Matches) < limit {
 		matchIds = playerModel.Matches
 	} else {
 		matchIds = playerModel.Matches[:limit]
 	}
 
-	handler, err := handlers.Hs.GetFirstHandler()
-	if err != nil {
-		return nil, err
+	var matches []*models.MatchMongo
+	channel := make(chan *models.MatchMongo)
+	for _, matchId := range matchIds {
+		go func(matchId string) {
+			var match models.MatchMongo
+			err := s.Repo.Get("matches", bson.M{"_id": matchId}).Decode(&match)
+			if err != nil {
+				log.Println("Failed to get match:", err)
+				channel <- nil
+				return
+			}
+
+			channel <- &match
+		}(matchId)
 	}
 
-	var matches []*protocol.CMsgGCMatchDetailsResponse
-	for _, matchId := range matchIds {
-		details, err := handler.DotaClient.RequestMatchDetails(context.Background(), matchId)
-		if err != nil {
-			return nil, err
+	for range matchIds {
+		match := <-channel
+		if match != nil {
+			matches = append(matches, match)
 		}
-
-		matches = append(matches, details)
 	}
 
 	return matches, nil

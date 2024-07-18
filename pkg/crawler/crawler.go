@@ -54,22 +54,26 @@ func sendMatchFinished(match *models.MatchData) {
 	safeSending(resp, 5, tournamentEndpoint)
 }
 
-func matchFinished(match *models.MatchData) {
+func matchFinished(match *models.MatchData, matchIdx string) {
 	if match.IsTournamentMatch {
 		// Send match finished to tournament service
 		go sendMatchFinished(match)
+	}
+
+	_, err := wires.Repo.Insert("matches", models.MatchMongo{Id: matchIdx, Match: match.Match})
+	if err != nil {
+		log.Println("Failed to save match to mongo: ", err)
 	}
 
 	// Save player history
 	opts := options.Update().SetUpsert(true)
 	for _, player := range match.Match.Players {
 		playerId := *player.AccountId
-		matchId := *match.Match.MatchId
 
-		go func(playerId uint32, matchId uint64) {
+		go func(playerId uint32, matchIdx string) {
 			_, err := wires.Repo.Update("players", bson.M{"_id": playerId}, bson.M{
 				"$push": bson.M{"matches": bson.M{
-					"$each":     bson.A{matchId},
+					"$each":     bson.A{matchIdx},
 					"$position": 0,
 				}},
 			}, opts)
@@ -77,7 +81,12 @@ func matchFinished(match *models.MatchData) {
 			if err != nil {
 				log.Println("Failed to update player: ", err)
 			}
-		}(playerId, matchId)
+		}(playerId, matchIdx)
+	}
+
+	err = utils.DeleteMatchRedis(matchIdx)
+	if err != nil {
+		log.Println("Failed to delete match from redis: ", err)
 	}
 
 	if statsEndpoint != "" {
@@ -144,7 +153,7 @@ func crawlMatches() {
 		case models.MatchData:
 			log.Println("Match finished: ")
 			log.Println("Outcome: ", protocol.EMatchOutcome_name[int32(match.Match.GetMatchOutcome())])
-			matchFinished(&match)
+			matchFinished(&match, matchIdx)
 			toRemove = append(toRemove, matchIdx)
 		default:
 			continue

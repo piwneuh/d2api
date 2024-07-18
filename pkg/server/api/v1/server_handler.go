@@ -32,7 +32,7 @@ func RegisterServer(router *gin.Engine, ctx context.Context) {
 		bots := v1.Group("/bots")
 		{
 			bots.GET("", getBots)
-			bots.DELETE("/:botId", deleteBot) // for leaving a lobby
+			bots.DELETE("/:username", deleteBot) // for leaving a lobby
 		}
 	}
 }
@@ -44,7 +44,12 @@ func getBots(c *gin.Context) {
 
 func deleteBot(c *gin.Context) {
 	username := c.Param("username")
-	err := handlers.Hs.LeaveLobby(username)
+	if username == "" {
+		c.JSON(400, gin.H{"error": "need to send a valid username"})
+		return
+	}
+
+	err := handlers.Hs.DestroyLobby(username)
 	if err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return

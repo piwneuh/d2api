@@ -58,6 +58,15 @@ func SetMatchRedis(matchIdx string, match m.MatchDetails) error {
 	return nil
 }
 
+func DeleteMatchRedis(matchIdx string) error {
+	err := redis.RedisClient.Del(context.Background(), matchIdx).Err()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func GetAllMatchIdxs() ([]string, error) {
 	keys, err := redis.RedisClient.Keys(context.Background(), "*").Result()
 	if err != nil {

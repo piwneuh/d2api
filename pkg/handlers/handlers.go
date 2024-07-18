@@ -217,11 +217,18 @@ func (hs *Handlers) GetAllBots() []*ListHander {
 	return bots
 }
 
-func (hs *Handlers) LeaveLobby(username string) error {
+func (hs *Handlers) DestroyLobby(username string) error {
 	hs.Mutex.Lock()
 	defer hs.Mutex.Unlock()
 	for _, handler := range hs.Handlers {
 		if handler.Username == username {
+			if handler.DotaClient == nil {
+				go func() {
+					handler.InitSteamConnection()
+				}()
+				time.Sleep(3 * time.Second)
+			}
+
 			handler.DotaClient.DestroyLobby(context.Background())
 			time.Sleep(1 * time.Second)
 
