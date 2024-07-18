@@ -16,6 +16,7 @@ type LobbyConfig struct {
 	PassKey      string `json:"passKey"`
 	ServerRegion uint32 `json:"serverRegion"`
 	GameMode     string `json:"gameMode"`
+	FillWithBots bool   `json:"fillWithBots,omitempty"`
 }
 
 type TourMatch struct {

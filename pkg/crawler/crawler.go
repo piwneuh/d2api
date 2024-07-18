@@ -68,6 +68,10 @@ func matchFinished(match *models.MatchData, matchIdx string) {
 	// Save player history
 	opts := options.Update().SetUpsert(true)
 	for _, player := range match.Match.Players {
+		if player.AccountId == nil {
+			continue
+		}
+
 		playerId := *player.AccountId
 
 		go func(playerId uint32, matchIdx string) {

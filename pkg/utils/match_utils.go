@@ -257,6 +257,7 @@ func createLobby(handler *h.Handler, req requests.CreateMatchReq) (*protocol.CSO
 		PassKey:      proto.String(req.LobbyConfig.PassKey),
 		ServerRegion: proto.Uint32(req.LobbyConfig.ServerRegion),
 		GameMode:     proto.Uint32(GetGameModeFromString(req.LobbyConfig.GameMode)),
+		FillWithBots: proto.Bool(req.LobbyConfig.FillWithBots),
 	}
 
 	handler.DotaClient.CreateLobby(lobbyDetails)

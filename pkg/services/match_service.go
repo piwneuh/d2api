@@ -147,6 +147,9 @@ func (s *MatchService) GetMatchInfo(matchIdx string) (*response.MatchInfo, error
 	case models.MatchMongo:
 		log.Println("MatchMongo")
 		matchInfo = &response.MatchInfo{Status: "finished"}
+	case models.MatchStatus:
+		log.Println("MatchStatus")
+		matchInfo = &response.MatchInfo{Status: match.Status}
 	default:
 		return nil, errors.New("unknown match type")
 	}
