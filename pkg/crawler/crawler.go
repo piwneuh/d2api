@@ -60,7 +60,7 @@ func matchFinished(match *models.MatchData, matchIdx string) {
 		go sendMatchFinished(match)
 	}
 
-	_, err := wires.Repo.Insert("matches", models.MatchMongo{Id: matchIdx, Match: match.Match})
+	_, err := wires.Repo.Insert("matches", models.MatchMongo{Id: matchIdx, Status: "finished", Match: match.Match})
 	if err != nil {
 		log.Println("Failed to save match to mongo: ", err)
 	}
