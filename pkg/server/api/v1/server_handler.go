@@ -43,20 +43,14 @@ func getBots(c *gin.Context) {
 }
 
 func deleteBot(c *gin.Context) {
-	botId := c.Param("botId")
-	botIdInt, err := strconv.ParseUint(botId, 10, 16)
-	if err != nil {
-		c.JSON(400, gin.H{"error": "need to send a valid botId"})
-		return
-	}
-
-	err = handlers.Hs.LeaveLobby(uint16(botIdInt))
+	username := c.Param("username")
+	err := handlers.Hs.LeaveLobby(username)
 	if err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(200, gin.H{"message": "bot " + botId + " left lobby"})
+	c.JSON(200, gin.H{"message": "bot " + username + " left lobby"})
 }
 
 func postReinvitePlayers(c *gin.Context) {

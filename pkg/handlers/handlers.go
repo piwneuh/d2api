@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
@@ -216,16 +217,19 @@ func (hs *Handlers) GetAllBots() []*ListHander {
 	return bots
 }
 
-func (hs *Handlers) LeaveLobby(botId uint16) error {
+func (hs *Handlers) LeaveLobby(username string) error {
 	hs.Mutex.Lock()
 	defer hs.Mutex.Unlock()
-	if botId >= uint16(len(hs.Handlers)) {
-		return errors.New("botId out of range")
-	}
-	hs.Handlers[botId].DotaClient.LeaveLobby()
-	time.Sleep(1 * time.Second)
+	for _, handler := range hs.Handlers {
+		if handler.Username == username {
+			handler.DotaClient.DestroyLobby(context.Background())
+			time.Sleep(1 * time.Second)
 
-	hs.Handlers[botId].Occupied = false
-	hs.Handlers[botId].Broken = false
-	return nil
+			handler.Occupied = false
+			handler.Broken = false
+			return nil
+		}
+	}
+
+	return errors.New("no bot with that username")
 }
